@@ -79,5 +79,6 @@ set(GTEST_BOTH_LIBRARIES "${GTEST_MAIN_LIBRARIES}" "${GTEST_LIBRARIES}")
 #
 
 add_executable(threshold_resource_estimator_test threshold_resource_estimator_test.cpp)
-target_link_libraries(threshold_resource_estimator_test ${GTEST_BOTH_LIBRARIES})
+add_dependencies(threshold_resource_estimator_test GTest)
+target_link_libraries(threshold_resource_estimator_test ${GTEST_BOTH_LIBRARIES} ${MESOS_LIBRARIES})
 add_test("ThresholdResourceEstimatorTests" threshold_resource_estimator_test)
