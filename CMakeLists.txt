@@ -20,6 +20,7 @@ find_path(MESOS_INCLUDE_DIR "mesos/mesos.hpp" DOC "Mesos include directory")
 find_library(MESOS_LIBRARIES "mesos" DOC "The Mesos library")
 
 include_directories(
+    SYSTEM
     ${GLOG_INCLUDE_DIR}
     ${STOUT_INCLUDE_DIR}
     ${LIBPROCESS_INCLUDE_DIR}
@@ -28,7 +29,12 @@ include_directories(
     ${Boost_INCLUDE_DIRS}
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+
+#
+# Configure compilers
+#
+set(CMAKE_C_FLAGS "-Wall -Werror ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
 
 
 #
