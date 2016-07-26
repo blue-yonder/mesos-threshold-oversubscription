@@ -8,6 +8,7 @@
 #include <mesos/version.hpp>
 #include <mesos/module.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/module/resource_estimator.hpp>
 
 #include <gtest/gtest.h>
 
@@ -16,6 +17,8 @@ using std::string;
 using process::Owned;
 
 using mesos::modules::ModuleBase;
+using mesos::modules::Module;
+using mesos::slave::ResourceEstimator;
 
 namespace {
 
@@ -90,6 +93,10 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     ASSERT_FALSE(load_result.isError()) << load_result.error();
     ModuleBase* moduleBase = load_result.get();
     verifyModule(moduleName, moduleBase);
+    auto estimatorModule = reinterpret_cast<Module<ResourceEstimator>*>(moduleBase);
+    auto estimator = estimatorModule->create(mesos::Parameters());
+    ASSERT_NE(nullptr, estimator);
+    delete estimator;
 }
 
 }

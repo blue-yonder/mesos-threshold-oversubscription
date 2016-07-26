@@ -1,9 +1,26 @@
 #include <mesos/module/resource_estimator.hpp>
 
+using process::Future;
+
+using mesos::Resources;
+using mesos::ResourceUsage;
+
 namespace {
 
+class FixedResourceEstimator : public mesos::slave::ResourceEstimator
+{
+    virtual Try<Nothing> initialize(const std::function<Future<ResourceUsage>()>&) final {
+        return Nothing();
+    }
+
+    virtual Future<Resources> oversubscribable() final {
+        return Resources();
+    }
+
+};
+
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
-    return nullptr;  // FIXME implementation needed
+    return new FixedResourceEstimator();
 }
 
 static bool compatible() {
