@@ -7,7 +7,7 @@ using mesos::ResourceUsage;
 
 namespace {
 
-class FixedResourceEstimator : public mesos::slave::ResourceEstimator
+class ThresholdResourceEstimator : public mesos::slave::ResourceEstimator
 {
     virtual Try<Nothing> initialize(const std::function<Future<ResourceUsage>()>&) final {
         return Nothing();
@@ -20,7 +20,7 @@ class FixedResourceEstimator : public mesos::slave::ResourceEstimator
 };
 
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
-    return new FixedResourceEstimator();
+    return new ThresholdResourceEstimator();
 }
 
 static bool compatible() {
