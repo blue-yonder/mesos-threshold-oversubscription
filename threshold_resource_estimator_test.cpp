@@ -14,8 +14,10 @@
 
 using std::string;
 
+using process::Future;
 using process::Owned;
 
+using mesos::ResourceUsage;
 using mesos::modules::ModuleBase;
 using mesos::modules::Module;
 using mesos::slave::ResourceEstimator;
@@ -28,20 +30,24 @@ string const moduleName{"com_blue_yonder_ThresholdResourceEstimator"};
 class ThresholdResourceEstimatorTest : public ::testing::Test {
 public:
     ThresholdResourceEstimatorTest()
-        : dynamicLibrary(new DynamicLibrary())
+        : dynamicLibrary(new DynamicLibrary()),
+          moduleBase(nullptr)
     { }
 
     virtual void TearDown()
     {
+        moduleBase = nullptr;
         dynamicLibrary->close();
 
         ::testing::Test::TearDown();
     }
 
     Try<ModuleBase*> loadModule();
+    ResourceEstimator* createEstimator(mesos::Parameters const & params);
 
 private:
     Owned<DynamicLibrary> dynamicLibrary;
+    ModuleBase* moduleBase;
 };
 
 void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
@@ -74,29 +80,52 @@ void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
 }
 
 Try<ModuleBase*> ThresholdResourceEstimatorTest::loadModule() {
-    auto const path = "./" + os::libraries::expandName(libraryName);
-    Try<Nothing> result = this->dynamicLibrary->open(path);
-    if(!result.isSome()) {
-        return Error("Error opening library of module: '" + moduleName + "': " + result.error());
-    }
+    if(this->moduleBase == nullptr) {
+        auto const path = "./" + os::libraries::expandName(libraryName);
+        Try<Nothing> result = this->dynamicLibrary->open(path);
+        if(!result.isSome()) {
+            return Error("Error opening library of module: '" + moduleName + "': " + result.error());
+        }
 
-    Try<void*> symbol = dynamicLibrary->loadSymbol(moduleName);
-    if(symbol.isError()) {
-        return Error("Error loading module '" + moduleName + "': " + symbol.error());
-    }
+        Try<void*> symbol = this->dynamicLibrary->loadSymbol(moduleName);
+        if(symbol.isError()) {
+            return Error("Error loading module '" + moduleName + "': " + symbol.error());
+        }
 
-    return reinterpret_cast<ModuleBase*>(symbol.get());
+        this->moduleBase = reinterpret_cast<ModuleBase*>(symbol.get());
+    }
+    return moduleBase;
 }
+
+ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parameters const & params) {
+    auto load_result = this->loadModule();
+    ModuleBase* moduleBase = load_result.get();
+    auto estimatorModule = reinterpret_cast<Module<ResourceEstimator>*>(moduleBase);
+    return estimatorModule->create(params);
+}
+
+class UsageMock {
+public:
+    Future<ResourceUsage> operator()() const {
+        return ResourceUsage{};
+    }
+};
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     auto load_result = loadModule();
     ASSERT_FALSE(load_result.isError()) << load_result.error();
     ModuleBase* moduleBase = load_result.get();
     verifyModule(moduleName, moduleBase);
-    auto estimatorModule = reinterpret_cast<Module<ResourceEstimator>*>(moduleBase);
-    auto estimator = estimatorModule->create(mesos::Parameters());
-    ASSERT_NE(nullptr, estimator);
-    delete estimator;
+    Owned<ResourceEstimator> estimator{createEstimator(mesos::Parameters{})};
+    ASSERT_NE(nullptr, estimator.get());
+}
+
+TEST_F(ThresholdResourceEstimatorTest, test_noop) {
+    UsageMock usage;
+    Owned<ResourceEstimator> estimator{createEstimator(mesos::Parameters{})};
+    estimator->initialize(usage);
+    auto available_resources = estimator->oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
 }
 
 }
