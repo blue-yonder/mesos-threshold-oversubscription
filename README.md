@@ -26,3 +26,16 @@ tripplet where on Debian Wheezy a compatible compiler must be selected:
 	make
 	make install
 
+Configuration
+-------------
+
+Add the following configuration to your `mesos-slave` invocation:
+
+    --resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
+    --modules='{
+      "libraries": {
+        "file": "/<path>/<to>/libthreshold_resource_estimator.so",
+        "modules": {
+          "name": "com_blue_yonder_ThresholdResourceEstimator",
+        }
+      }
