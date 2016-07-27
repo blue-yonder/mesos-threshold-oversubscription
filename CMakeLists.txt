@@ -78,7 +78,12 @@ set(GTEST_BOTH_LIBRARIES "${GTEST_MAIN_LIBRARIES}" "${GTEST_LIBRARIES}")
 # Define our tests
 #
 
-add_executable(threshold_resource_estimator_test threshold_resource_estimator_test.cpp)
-add_dependencies(threshold_resource_estimator_test GTest)
-target_link_libraries(threshold_resource_estimator_test ${GTEST_BOTH_LIBRARIES} ${MESOS_LIBRARIES})
-add_test("ThresholdResourceEstimatorTests" threshold_resource_estimator_test)
+add_executable(module_test module_test.cpp)
+add_dependencies(module_test GTest)
+target_link_libraries(module_test ${GTEST_BOTH_LIBRARIES} ${MESOS_LIBRARIES})
+add_test("ModuleTests" module_test)
+
+add_executable(unit_test unit_test.cpp)
+add_dependencies(unit_test GTest)
+target_link_libraries(unit_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
+add_test("UnitTests" unit_test)

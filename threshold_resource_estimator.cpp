@@ -1,10 +1,10 @@
+#include "threshold_resource_estimator.hpp"
+
 #include <functional>
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
-
-#include <mesos/module/resource_estimator.hpp>
 
 using process::dispatch;
 using process::Failure;
@@ -15,7 +15,8 @@ using process::Owned;
 using mesos::Resources;
 using mesos::ResourceUsage;
 
-namespace {
+using com::blue_yonder::ThresholdResourceEstimator;
+using com::blue_yonder::ThresholdResourceEstimatorProcess;
 
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
@@ -26,19 +27,6 @@ private:
     Future<Resources> calcUnusedResources(ResourceUsage const & usage);
 
     std::function<Future<ResourceUsage>()> const usage;
-    Resources const fixed;
-};
-
-class ThresholdResourceEstimator : public mesos::slave::ResourceEstimator
-{
-public:
-    ThresholdResourceEstimator(Resources const & fixed);
-    virtual Try<Nothing> initialize(const std::function<Future<ResourceUsage>()>&) final;
-    virtual Future<Resources> oversubscribable() final;
-    virtual ~ThresholdResourceEstimator();
-
-private:
-    Owned<ThresholdResourceEstimatorProcess> process;
     Resources const fixed;
 };
 
@@ -105,6 +93,7 @@ ThresholdResourceEstimator::~ThresholdResourceEstimator()
     }
 }
 
+namespace {
 
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
     // Obtain the *fixed* resources from parameters.
