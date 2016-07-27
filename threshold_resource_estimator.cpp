@@ -1,3 +1,6 @@
+#include <functional>
+
+#include <process/defer.hpp>
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
@@ -17,35 +20,70 @@ namespace {
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
 public:
+    ThresholdResourceEstimatorProcess(std::function<Future<ResourceUsage>()> const &, Resources const & fixed);
     Future<Resources> oversubscribable();
+private:
+    Future<Resources> calcUnusedResources(ResourceUsage const & usage);
+
+    std::function<Future<ResourceUsage>()> const usage;
+    Resources const fixed;
 };
 
 class ThresholdResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
+    ThresholdResourceEstimator(Resources const & fixed);
     virtual Try<Nothing> initialize(const std::function<Future<ResourceUsage>()>&) final;
-
     virtual Future<Resources> oversubscribable() final;
-
     virtual ~ThresholdResourceEstimator();
 
-protected:
+private:
     Owned<ThresholdResourceEstimatorProcess> process;
+    Resources const fixed;
 };
 
 
+ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
+    std::function<Future<ResourceUsage>()> const & usage,
+    Resources const & fixed
+)
+    : usage(usage), fixed(fixed)
+{};
+
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    return Resources();
+    return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
 }
 
+Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const & usage) {
+    Resources allocatedRevocable;
+    for(auto & executor: usage.executors()) {
+        allocatedRevocable += Resources(executor.allocated()).revocable();
+    }
 
-Try<Nothing> ThresholdResourceEstimator::initialize(const std::function<Future<ResourceUsage>()>&) {
+    return fixed - allocatedRevocable;
+}
+
+Resources make_revocable(Resources const & any) {
+    Resources revocable;
+    for(auto resource: any) {
+        resource.mutable_revocable();
+        revocable += resource;
+    }
+    return revocable;
+}
+
+ThresholdResourceEstimator::ThresholdResourceEstimator(Resources const & fixed)
+    : fixed{make_revocable(fixed)}
+{
+};
+
+Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<ResourceUsage>()> const & usage) {
     if (process.get() != nullptr) {
         return Error("Threshold resource estimator has already been initialized");
     }
 
-    process.reset(new ThresholdResourceEstimatorProcess());
+    process.reset(new ThresholdResourceEstimatorProcess(usage, fixed));
     spawn(process.get());
 
     return Nothing();
@@ -69,7 +107,22 @@ ThresholdResourceEstimator::~ThresholdResourceEstimator()
 
 
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
-    return new ThresholdResourceEstimator();
+    // Obtain the *fixed* resources from parameters.
+    Option<Resources> resources;
+    for(auto const & parameter: parameters.parameter()) {
+        if (parameter.key() == "resources") {
+            Try<Resources> parsed = Resources::parse(parameter.value());
+            if (parsed.isError()) {
+                return nullptr;
+            }
+            resources = parsed.get();
+        }
+    }
+
+    if (resources.isNone()) {
+        return nullptr;
+    }
+    return new ThresholdResourceEstimator(resources.get());
 }
 
 static bool compatible() {

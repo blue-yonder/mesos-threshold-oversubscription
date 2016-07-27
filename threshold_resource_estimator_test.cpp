@@ -1,3 +1,4 @@
+#include <stout/bytes.hpp>
 #include <stout/dynamiclibrary.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -17,6 +18,7 @@ using std::string;
 using process::Future;
 using process::Owned;
 
+using mesos::Resources;
 using mesos::ResourceUsage;
 using mesos::modules::ModuleBase;
 using mesos::modules::Module;
@@ -49,6 +51,14 @@ private:
     Owned<DynamicLibrary> dynamicLibrary;
     ModuleBase* moduleBase;
 };
+
+mesos::Parameters make_parameters(std::string fixed) {
+    mesos::Parameters parameters{};
+    auto parameter = parameters.add_parameter();
+    parameter->set_key("resources");
+    parameter->set_value(fixed);
+    return parameters;
+}
 
 void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
 {
@@ -106,26 +116,87 @@ ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parame
 
 class UsageMock {
 public:
-    Future<ResourceUsage> operator()() const {
-        return ResourceUsage{};
+    UsageMock()
+        : value{std::make_shared<ResourceUsage>()}
+    {};
+
+    void set(std::string const revocable_allocated) {
+        value->Clear();
+        auto * revocable_executor = value->add_executors();
+        auto resources = Resources::parse(revocable_allocated);
+        for(auto const & parsed_resource: resources.get()) {
+            auto * mutable_resource = revocable_executor->add_allocated();
+            mutable_resource->CopyFrom(parsed_resource);
+            mutable_resource->mutable_revocable();  // mark as revocable
+        }
     }
+    Future<ResourceUsage> operator()() const {
+        return *value;
+    }
+private:
+    std::shared_ptr<ResourceUsage> value;
 };
+
+TEST(UsageMockTest, test_set) {
+    UsageMock mock;
+    mock.set("cpus:3;mem:62");
+
+    ResourceUsage usage = mock().get();
+    Resources allocatedRevocable;
+    for(auto & executor: usage.executors()) {
+        allocatedRevocable += Resources(executor.allocated()).revocable();
+    }
+
+    EXPECT_EQ(1, usage.executors_size());
+    EXPECT_EQ(3, allocatedRevocable.cpus().get());
+    EXPECT_EQ(Bytes::parse("62MB").get(), allocatedRevocable.mem().get());
+
+    // must also work for copy
+    UsageMock copy = mock;
+    mock.set("cpus:5;mem:127");
+    usage = copy().get();
+
+    Resources copiedRevocable;
+    for(auto & executor: usage.executors()) {
+        copiedRevocable += Resources(executor.allocated()).revocable();
+    }
+    EXPECT_EQ(5, copiedRevocable.cpus().get());
+    EXPECT_EQ(Bytes::parse("127MB").get(), copiedRevocable.mem().get());
+}
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     auto load_result = loadModule();
     ASSERT_FALSE(load_result.isError()) << load_result.error();
     ModuleBase* moduleBase = load_result.get();
     verifyModule(moduleName, moduleBase);
-    Owned<ResourceEstimator> estimator{createEstimator(mesos::Parameters{})};
+    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(""))};
     ASSERT_NE(nullptr, estimator.get());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_noop) {
     UsageMock usage;
-    Owned<ResourceEstimator> estimator{createEstimator(mesos::Parameters{})};
+    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(""))};
     estimator->initialize(usage);
     auto available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
+
+TEST_F(ThresholdResourceEstimatorTest, test_underutilized) {
+    UsageMock usage;  // no usage at all
+    auto const parameters = make_parameters("cpus(*):2;mem(*):512");
+    Owned<ResourceEstimator> estimator{createEstimator(parameters)};
+    estimator->initialize(usage);
+    auto available_resources = estimator->oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+
+    usage.set("cpus(*):1.5;mem(*):128");
+    available_resources = estimator->oversubscribable().get();
+    EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("384MB").get(), available_resources.revocable().mem().get());
+
+    // TODO also test with actual usage at threshold
 }
 
 }

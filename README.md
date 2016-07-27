@@ -37,5 +37,9 @@ Add the following configuration to your `mesos-slave` invocation:
         "file": "/<path>/<to>/libthreshold_resource_estimator.so",
         "modules": {
           "name": "com_blue_yonder_ThresholdResourceEstimator",
+          "parameters": {
+            "key": "resources",
+            "value": "cpus:2;mem:512"
+          }
         }
       }
