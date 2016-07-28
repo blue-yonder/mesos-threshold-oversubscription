@@ -37,9 +37,27 @@ Add the following configuration to your `mesos-slave` invocation:
         "file": "/<path>/<to>/libthreshold_resource_estimator.so",
         "modules": {
           "name": "com_blue_yonder_ThresholdResourceEstimator",
-          "parameters": {
-            "key": "resources",
-            "value": "cpus:2;mem:512"
-          }
+          "parameters": [
+            {
+              "key": "resources",
+              "value": "cpus:2;mem:512"
+            },
+            {
+              "key": "load_threshold_1min",
+              "value": "4"
+            },
+            {
+              "key": "load_threshold_5min",
+              "value": "3"
+            },
+            {
+              "key": "load_threshold_15min",
+              "value": "2"
+            }
+          ]
         }
       }
+    }'
+
+The parameter names are chosen to be consistent with the fixed resource estimator and the load quality-of-service
+controller.

@@ -1,6 +1,9 @@
 #include "threshold_resource_estimator.hpp"
 
+#include <stout/os.hpp>
+
 #include <gtest/gtest.h>
+
 
 using process::Future;
 
@@ -42,6 +45,29 @@ private:
     std::shared_ptr<ResourceUsage> value;
 };
 
+class LoadMock {
+public:
+    LoadMock() : value{std::make_shared<os::Load>()} {};
+
+    Try<os::Load> operator()() {
+        return *value;
+    }
+
+    void set(float one, float five, float fifteen) {
+        *value = os::Load{one, five, fifteen};
+    }
+
+private:
+    std::shared_ptr<os::Load> value;
+};
+
+#define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
+    do { \
+        EXPECT_EQ(expect_one, load.one); \
+        EXPECT_EQ(expect_five, load.five); \
+        EXPECT_EQ(expect_fifteen, load.fifteen); \
+    } while(false); \
+
 TEST(UsageMockTest, test_set) {
     UsageMock mock;
     mock.set("cpus:3;mem:62", "cpus:1;mem:48");
@@ -73,10 +99,20 @@ TEST(UsageMockTest, test_set) {
     EXPECT_EQ(Bytes::parse("127MB").get(), copiedRevocable.mem().get());
 }
 
+TEST(LoadMockTest, test_set) {
+    LoadMock mock;
+    EXPECT_LOAD(0, 0, 0, mock().get());
+
+    auto copy = mock;
+    mock.set(1.5, 2.5, 3.5);
+    EXPECT_LOAD(1.5, 2.5, 3.5, mock().get());
+    EXPECT_LOAD(1.5, 2.5, 3.5, copy().get());
+}
 
 TEST(ThresholdResourceEstimatorTest, test_noop) {
     UsageMock usage;
-    ThresholdResourceEstimator estimator{Resources::parse("").get()};
+    LoadMock load;
+    ThresholdResourceEstimator estimator{load, Resources::parse("").get(), None(), None(), None()};
     estimator.initialize(usage);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -84,7 +120,8 @@ TEST(ThresholdResourceEstimatorTest, test_noop) {
 
 TEST(ThresholdResourceEstimatorTest, test_underutilized) {
     UsageMock usage;  // no usage at all
-    ThresholdResourceEstimator estimator{Resources::parse("cpus(*):2;mem(*):512").get()};
+    LoadMock load;
+    ThresholdResourceEstimator estimator{load, Resources::parse("cpus(*):2;mem(*):512").get(), None(), None(), None()};
     estimator.initialize(usage);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
@@ -102,8 +139,41 @@ TEST(ThresholdResourceEstimatorTest, test_underutilized) {
     available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
     EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+}
 
-    // TODO also test with actual usage at threshold
+TEST(ThresholdResourceEstimatorTest, test_load_threshold_exceeded) {
+    UsageMock usage;  // no usage at all
+    LoadMock load;
+    load.set(3.9, 2.9, 1.9);
+    ThresholdResourceEstimator estimator{
+        load,
+        Resources::parse("cpus(*):2;mem(*):512").get(),
+        4,
+        3,
+        2
+    };
+    estimator.initialize(usage);
+
+    // test _not_ exceeded
+    auto available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+
+    // test 1 minute threshold exceeded
+    load.set(4.0, 2.9, 1.9);
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
+
+    // test 5 minute threshold exceeded
+    load.set(3.9, 3.0, 1.9);
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
+
+    // test 15 minute threshold exceeded
+    load.set(3.9, 2.9, 2.0);
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
 }
 
 }

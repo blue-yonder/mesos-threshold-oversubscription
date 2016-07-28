@@ -11,3 +11,4 @@ UNRELEASED
 ### Added
 
 * Offer a fixed amount of resources for oversubscription.
+* Stop offering resources for oversubscription if load threshold is exceeded.
