@@ -22,7 +22,7 @@ public:
 
     void set(
         std::string const & revocable_allocated, std::string const & non_revocable_allocated,
-        std::string const & revocable_mem_used, std::string const & non_revocable_mem_used
+        Option<std::string> const & revocable_mem_used, Option<std::string> const & non_revocable_mem_used
     ) {
         value->Clear();
         auto * revocable_executor = value->add_executors();
@@ -32,8 +32,10 @@ public:
             mutable_resource->CopyFrom(parsed_resource);
             mutable_resource->mutable_revocable();  // mark as revocable
         }
-        auto revocable_stats = revocable_executor->mutable_statistics();
-        revocable_stats->set_mem_total_bytes(Bytes::parse(revocable_mem_used).get().bytes());
+        if(revocable_mem_used.isSome()) {
+            auto revocable_stats = revocable_executor->mutable_statistics();
+            revocable_stats->set_mem_total_bytes(Bytes::parse(revocable_mem_used.get()).get().bytes());
+        }
 
         auto * non_revocable_executor = value->add_executors();
         auto non_revocable_resources = Resources::parse(non_revocable_allocated);
@@ -42,8 +44,10 @@ public:
             mutable_resource->CopyFrom(parsed_resource);
             mutable_resource->clear_revocable();  // mark as non-revocable
         }
-        auto non_revocable_stats = non_revocable_executor->mutable_statistics();
-        non_revocable_stats->set_mem_total_bytes(Bytes::parse(non_revocable_mem_used).get().bytes());
+        if(non_revocable_mem_used.isSome()) {
+            auto non_revocable_stats = non_revocable_executor->mutable_statistics();
+            non_revocable_stats->set_mem_total_bytes(Bytes::parse(non_revocable_mem_used.get()).get().bytes());
+        }
     }
     Future<ResourceUsage> operator()() const {
         return *value;
@@ -109,6 +113,13 @@ TEST(UsageMockTest, test_set) {
     }
     EXPECT_EQ(5, copiedRevocable.cpus().get());
     EXPECT_EQ(Bytes::parse("127MB").get(), copiedRevocable.mem().get());
+
+    // can ommit usage values
+    mock.set("cpus:5;mem:127", "", None(), None());
+    usage = mock().get();
+    for(auto & executor: usage.executors()) {
+        EXPECT_FALSE(executor.has_statistics());
+    }
 }
 
 TEST(LoadMockTest, test_set) {
@@ -235,7 +246,14 @@ TEST(ThresholdResourceEstimatorTest, test_mem_threshold_exceeded) {
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 
-    // TODO test behaviour in case ResourceStatistics are not provided
+    // Ensure proper fallback in case resource statistics are not provided
+    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", None(), None());
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());  // allocated resources below threshold
+
+    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):256", None(), None());
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());  // combined allocated resources reached threshold
 }
 
 }

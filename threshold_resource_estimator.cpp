@@ -86,34 +86,34 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
     Try<os::Load> load = this->load();
 
     if (load.isError()) {
-      LOG(ERROR) << "Failed to fetch system load: " + load.error();
-      return false;
+        LOG(ERROR) << "Failed to fetch system load: " + load.error();
+        return false;
     }
 
     bool overloaded = false;
 
     if (loadThreshold1Min.isSome()) {
-      if (load.get().one >= loadThreshold1Min.get()) {
-        LOG(INFO) << "System 1 minute load average " << load.get().one
-                  << " reached threshold " << loadThreshold1Min.get() << ".";
-        overloaded = true;
-      }
+        if (load.get().one >= loadThreshold1Min.get()) {
+            LOG(INFO) << "System 1 minute load average " << load.get().one
+                      << " reached threshold " << loadThreshold1Min.get() << ".";
+            overloaded = true;
+        }
     }
 
     if (loadThreshold5Min.isSome()) {
-      if (load.get().five >= loadThreshold5Min.get()) {
-        LOG(INFO) << "System 5 minutes load average " << load.get().five
-                  << " reached threshold " << loadThreshold5Min.get() << ".";
-        overloaded = true;
-      }
+        if (load.get().five >= loadThreshold5Min.get()) {
+            LOG(INFO) << "System 5 minutes load average " << load.get().five
+                      << " reached threshold " << loadThreshold5Min.get() << ".";
+            overloaded = true;
+        }
     }
 
     if (loadThreshold15Min.isSome()) {
-      if (load.get().fifteen >= loadThreshold15Min.get()) {
-        LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
-                  << " reached threshold " << loadThreshold15Min.get() << ".";
-        overloaded = true;
-      }
+        if (load.get().fifteen >= loadThreshold15Min.get()) {
+            LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
+                      << " reached threshold " << loadThreshold15Min.get() << ".";
+            overloaded = true;
+        }
     }
 
     return overloaded;
@@ -124,7 +124,15 @@ namespace {
 uint64_t sum_mem_total_bytes_for_all_executors(ResourceUsage const & usage) {
     uint64_t total_mem_total_bytes{0};
     for(auto const & executor: usage.executors()) {
-        total_mem_total_bytes += executor.statistics().mem_total_bytes();
+        if(executor.has_statistics()) {
+            total_mem_total_bytes += executor.statistics().mem_total_bytes();
+        } else {
+            // assume the executor to use up all of its allocation
+            auto allocatedMem = Resources(executor.allocated()).mem();
+            if(allocatedMem.isSome()) {
+                total_mem_total_bytes += allocatedMem.get().bytes();
+            }
+        }
     }
     return total_mem_total_bytes;
 }
@@ -226,35 +234,35 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
 
         // Parse any thresholds
         if (parameter.key() == "load_threshold_1min") {
-          auto thresholdParam = numify<double>(parameter.value());
-          if (thresholdParam.isError()) {
-            LOG(ERROR) << "Failed to parse 1 min load threshold: " << thresholdParam.error();
-            return nullptr;
-          }
-          loadThreshold1Min = thresholdParam.get();
+            auto thresholdParam = numify<double>(parameter.value());
+            if (thresholdParam.isError()) {
+                LOG(ERROR) << "Failed to parse 1 min load threshold: " << thresholdParam.error();
+                return nullptr;
+            }
+            loadThreshold1Min = thresholdParam.get();
 
         } else if (parameter.key() == "load_threshold_5min") {
-          auto thresholdParam = numify<double>(parameter.value());
-          if (thresholdParam.isError()) {
-            LOG(ERROR) << "Failed to parse 5 min load threshold: " << thresholdParam.error();
-            return nullptr;
-          }
-          loadThreshold5Min = thresholdParam.get();
+            auto thresholdParam = numify<double>(parameter.value());
+            if (thresholdParam.isError()) {
+                LOG(ERROR) << "Failed to parse 5 min load threshold: " << thresholdParam.error();
+                return nullptr;
+            }
+            loadThreshold5Min = thresholdParam.get();
 
         } else if (parameter.key() == "load_threshold_15min") {
-          auto thresholdParam = numify<double>(parameter.value());
-          if (thresholdParam.isError()) {
-            LOG(ERROR) << "Failed to parse 15 min load threshold: " << thresholdParam.error();
-            return nullptr;
-          }
-          loadThreshold15Min = thresholdParam.get();
+            auto thresholdParam = numify<double>(parameter.value());
+            if (thresholdParam.isError()) {
+                LOG(ERROR) << "Failed to parse 15 min load threshold: " << thresholdParam.error();
+                return nullptr;
+            }
+            loadThreshold15Min = thresholdParam.get();
         } else if (parameter.key() == "mem_threshold") {
-          auto thresholdParam = Bytes::parse(parameter.value() + "MB");
-          if (thresholdParam.isError()) {
-            LOG(ERROR) << "Failed to parse memory threshold: " << thresholdParam.error();
-            return nullptr;
-          }
-          memThreshold = thresholdParam.get();
+            auto thresholdParam = Bytes::parse(parameter.value() + "MB");
+            if (thresholdParam.isError()) {
+                LOG(ERROR) << "Failed to parse memory threshold: " << thresholdParam.error();
+                return nullptr;
+            }
+            memThreshold = thresholdParam.get();
         }
     }
 
