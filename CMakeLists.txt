@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.8.9)  # CMake version provided by Debian Wheezy, older versions untested
 project(threshold_resource_estimator CXX C)  # Language C is required by GTest
+set(PROJECT_MAJOR_VERSION 0)
+set(PROJECT_MINOR_VERSION 1)
+set(PROJECT_PATCH_VERSION 0)
+set(PROJECT_VERSION "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_VERSION}")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -43,6 +47,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
 
 add_library("${CMAKE_PROJECT_NAME}" SHARED threshold_resource_estimator.cpp)
 target_link_libraries("${CMAKE_PROJECT_NAME}" ${MESOS_LIBRARIES})
+set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES VERSION "${PROJECT_VERSION}")
 install(
 	TARGETS "${CMAKE_PROJECT_NAME}"
 	LIBRARY DESTINATION "lib/x86_64-linux-gnu/mesos/modules/"
