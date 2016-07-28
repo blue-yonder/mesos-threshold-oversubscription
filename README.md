@@ -53,6 +53,10 @@ Add the following configuration to your `mesos-slave` invocation:
             {
               "key": "load_threshold_15min",
               "value": "2"
+            },
+            {
+              "key": "mem_threshold",
+              "value": "384"
             }
           ]
         }

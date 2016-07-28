@@ -22,13 +22,15 @@ class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstima
 {
 public:
     ThresholdResourceEstimatorProcess(
-        std::function<Future<ResourceUsage>()> const &, std::function<Try<os::Load>()> const &, Resources const & fixed,
-        Option<double> const &, Option<double> const &, Option<double> const &
+        std::function<Future<ResourceUsage>()> const &, std::function<Try<os::Load>()> const &, Resources const &,
+        Option<double> const &, Option<double> const &, Option<double> const &,
+        Option<Bytes> const &
     );
     Future<Resources> oversubscribable();
 private:
     Future<Resources> calcUnusedResources(ResourceUsage const & usage);
     bool loadExceedsThresholds();
+    bool memExceedsThreshold(ResourceUsage const & usage);
 
     std::function<Future<ResourceUsage>()> const usage;
     std::function<Try<os::Load>()> const load;
@@ -36,6 +38,7 @@ private:
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
     Option<double> const loadThreshold15Min;
+    Option<Bytes> const memThreshold;
 };
 
 
@@ -45,14 +48,16 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     Resources const & fixed,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
-    Option<double> const & loadThreshold15Min
+    Option<double> const & loadThreshold15Min,
+    Option<Bytes> const & memThreshold
 ) :
     usage{usage},
     load{load},
     fixed{fixed},
     loadThreshold1Min{loadThreshold1Min},
     loadThreshold5Min{loadThreshold5Min},
-    loadThreshold15Min{loadThreshold15Min}
+    loadThreshold15Min{loadThreshold15Min},
+    memThreshold{memThreshold}
 {};
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
@@ -65,6 +70,10 @@ Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 }
 
 Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const & usage) {
+    if(memExceedsThreshold(usage)) {
+        return Resources();
+    }
+
     Resources allocatedRevocable;
     for(auto & executor: usage.executors()) {
         allocatedRevocable += Resources(executor.allocated()).revocable();
@@ -86,7 +95,7 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
     if (loadThreshold1Min.isSome()) {
       if (load.get().one >= loadThreshold1Min.get()) {
         LOG(INFO) << "System 1 minute load average " << load.get().one
-                  << " reached threshold " << loadThreshold1Min.get();
+                  << " reached threshold " << loadThreshold1Min.get() << ".";
         overloaded = true;
       }
     }
@@ -94,7 +103,7 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
     if (loadThreshold5Min.isSome()) {
       if (load.get().five >= loadThreshold5Min.get()) {
         LOG(INFO) << "System 5 minutes load average " << load.get().five
-                  << " reached threshold " << loadThreshold5Min.get();
+                  << " reached threshold " << loadThreshold5Min.get() << ".";
         overloaded = true;
       }
     }
@@ -102,13 +111,40 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
     if (loadThreshold15Min.isSome()) {
       if (load.get().fifteen >= loadThreshold15Min.get()) {
         LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
-                  << " reached threshold " << loadThreshold15Min.get();
+                  << " reached threshold " << loadThreshold15Min.get() << ".";
         overloaded = true;
       }
     }
 
     return overloaded;
 }
+
+namespace {
+
+uint64_t sum_mem_total_bytes_for_all_executors(ResourceUsage const & usage) {
+    uint64_t total_mem_total_bytes{0};
+    for(auto const & executor: usage.executors()) {
+        total_mem_total_bytes += executor.statistics().mem_total_bytes();
+    }
+    return total_mem_total_bytes;
+}
+
+}
+
+bool ThresholdResourceEstimatorProcess::memExceedsThreshold(ResourceUsage const & usage) {
+    if(memThreshold.isSome()) {
+        auto const mem_total_bytes = sum_mem_total_bytes_for_all_executors(usage);
+        if(mem_total_bytes >= memThreshold.get().bytes()) {
+            LOG(INFO) << "Total memory used " << Bytes(mem_total_bytes).megabytes() << " MB "
+                      << "reached threshold " << memThreshold.get().megabytes() << " MB.";
+            return true;
+        }
+    }
+
+    return false;
+}
+
+namespace {
 
 Resources makeRevocable(Resources const & any) {
     Resources revocable;
@@ -119,20 +155,23 @@ Resources makeRevocable(Resources const & any) {
     return revocable;
 }
 
+}
+
 ThresholdResourceEstimator::ThresholdResourceEstimator(
     std::function<Try<os::Load>()> const & load,
     Resources const & fixed,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
-    Option<double> const & loadThreshold15Min
+    Option<double> const & loadThreshold15Min,
+    Option<Bytes> const & memThreshold
 ) :
     load{load},
     fixed{makeRevocable(fixed)},
     loadThreshold1Min{loadThreshold1Min},
     loadThreshold5Min{loadThreshold5Min},
-    loadThreshold15Min{loadThreshold15Min}
-{
-};
+    loadThreshold15Min{loadThreshold15Min},
+    memThreshold{memThreshold}
+{};
 
 Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<ResourceUsage>()> const & usage) {
     if (process.get() != nullptr) {
@@ -141,7 +180,8 @@ Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<Resourc
 
     process.reset(new ThresholdResourceEstimatorProcess(
         usage, load, fixed,
-        loadThreshold1Min, loadThreshold5Min, loadThreshold15Min
+        loadThreshold1Min, loadThreshold5Min, loadThreshold15Min,
+        memThreshold
     ));
     spawn(process.get());
 
@@ -168,9 +208,10 @@ namespace {
 
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
     Option<Resources> resources;
-    Option<double> loadThreshold1Min = None();
-    Option<double> loadThreshold5Min = None();
-    Option<double> loadThreshold15Min = None();
+    Option<double> loadThreshold1Min;
+    Option<double> loadThreshold5Min;
+    Option<double> loadThreshold15Min;
+    Option<Bytes> memThreshold;
 
     for(auto const & parameter: parameters.parameter()) {
         // Parse the resource to offer for oversubscription
@@ -185,7 +226,7 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
 
         // Parse any thresholds
         if (parameter.key() == "load_threshold_1min") {
-          Try<double> thresholdParam = numify<double>(parameter.value());
+          auto thresholdParam = numify<double>(parameter.value());
           if (thresholdParam.isError()) {
             LOG(ERROR) << "Failed to parse 1 min load threshold: " << thresholdParam.error();
             return nullptr;
@@ -193,7 +234,7 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
           loadThreshold1Min = thresholdParam.get();
 
         } else if (parameter.key() == "load_threshold_5min") {
-          Try<double> thresholdParam = numify<double>(parameter.value());
+          auto thresholdParam = numify<double>(parameter.value());
           if (thresholdParam.isError()) {
             LOG(ERROR) << "Failed to parse 5 min load threshold: " << thresholdParam.error();
             return nullptr;
@@ -201,14 +242,19 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
           loadThreshold5Min = thresholdParam.get();
 
         } else if (parameter.key() == "load_threshold_15min") {
-          // Try to parse the load 15min value.
-          Try<double> thresholdParam = numify<double>(parameter.value());
+          auto thresholdParam = numify<double>(parameter.value());
           if (thresholdParam.isError()) {
             LOG(ERROR) << "Failed to parse 15 min load threshold: " << thresholdParam.error();
             return nullptr;
           }
           loadThreshold15Min = thresholdParam.get();
-
+        } else if (parameter.key() == "mem_threshold") {
+          auto thresholdParam = Bytes::parse(parameter.value() + "MB");
+          if (thresholdParam.isError()) {
+            LOG(ERROR) << "Failed to parse memory threshold: " << thresholdParam.error();
+            return nullptr;
+          }
+          memThreshold = thresholdParam.get();
         }
     }
 
@@ -222,7 +268,8 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
         resources.get(),
         loadThreshold1Min,
         loadThreshold5Min,
-        loadThreshold15Min
+        loadThreshold15Min,
+        memThreshold
     );
 }
 

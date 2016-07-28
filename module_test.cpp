@@ -51,7 +51,9 @@ private:
 };
 
 mesos::Parameters make_parameters(
-    std::string fixed, Option<string> load_one, Option<string> load_five, Option<string> load_fifteen
+    std::string fixed,
+    Option<string> load_one, Option<string> load_five, Option<string> load_fifteen,
+    Option<string> mem_threshold
 ) {
     mesos::Parameters parameters{};
     {
@@ -76,6 +78,12 @@ mesos::Parameters make_parameters(
         auto * parameter = parameters.add_parameter();
         parameter->set_key("load_threshold_15min");
         parameter->set_value(load_fifteen.get());
+    }
+
+    if(mem_threshold.isSome()) {
+        auto * parameter = parameters.add_parameter();
+        parameter->set_key("mem_threshold");
+        parameter->set_value(mem_threshold.get());
     }
 
     return parameters;
@@ -144,13 +152,13 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     ASSERT_FALSE(load_result.isError()) << load_result.error();
     ModuleBase* moduleBase = load_result.get();
     verifyModule(moduleName, moduleBase);
-    Owned<ResourceEstimator> estimator{createEstimator(make_parameters("", None(), None(), None()))};
+    Owned<ResourceEstimator> estimator{createEstimator(make_parameters("", None(), None(), None(), None()))};
     ASSERT_NE(nullptr, estimator.get());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_initialization) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), None(), None()
+        "cpus(*):2;mem(*):512", None(), None(), None(), None()  // no thresholds set
     ))};
     estimator->initialize(noUsage);
     auto available_resources = estimator->oversubscribable().get();
@@ -160,7 +168,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_initialization) {
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_1min) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", "0.0", None(), None()  // absurdly low load limit that will always be hit
+        "cpus(*):2;mem(*):512", "0.0", None(), None(), None()  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
     auto available_resources = estimator->oversubscribable().get();
@@ -169,7 +177,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_1min) {
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_5min) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), "0.0", None()  // absurdly low load limit that will always be hit
+        "cpus(*):2;mem(*):512", None(), "0.0", None(), None()  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
     auto available_resources = estimator->oversubscribable().get();
@@ -178,7 +186,16 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_5min) {
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_15min) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), None(), "0.0"  // absurdly low load limit that will always be hit
+        "cpus(*):2;mem(*):512", None(), None(), "0.0", None()  // absurdly low load limit that will always be hit
+    ))};
+    estimator->initialize(noUsage);
+    auto available_resources = estimator->oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
+}
+
+TEST_F(ThresholdResourceEstimatorTest, test_mem_threshold) {
+    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
+        "cpus(*):2;mem(*):512", None(), None(), None(), "0"  // absurdly low memore limit that will always be hit
     ))};
     estimator->initialize(noUsage);
     auto available_resources = estimator->oversubscribable().get();

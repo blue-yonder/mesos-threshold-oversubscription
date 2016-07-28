@@ -12,3 +12,5 @@ UNRELEASED
 
 * Offer a fixed amount of resources for oversubscription.
 * Stop offering resources for oversubscription if load threshold is exceeded.
+* Stop offering resources for oversubscription if memory threshold is exceeded.
+* Compatibility with Mesos 0.28

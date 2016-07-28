@@ -18,7 +18,8 @@ public:
         mesos::Resources const & fixed,
         Option<double> const & loadThreshold1Min,
         Option<double> const & loadThreshold5Min,
-        Option<double> const & loadThreshold15Min
+        Option<double> const & loadThreshold15Min,
+        Option<Bytes> const & memThreshold
     );
     virtual Try<Nothing> initialize(const std::function<process::Future<mesos::ResourceUsage>()>&) final;
     virtual process::Future<mesos::Resources> oversubscribable() final;
@@ -31,6 +32,7 @@ private:
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
     Option<double> const loadThreshold15Min;
+    Option<Bytes> const memThreshold;
 };
 
 } }
