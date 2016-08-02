@@ -214,6 +214,22 @@ ThresholdResourceEstimator::~ThresholdResourceEstimator()
 
 namespace {
 
+struct ParsingError {
+    std::string message;
+
+    ParsingError(std::string const & parameter_description, std::string const & error_message)
+        : message("Failed to parse " + parameter_description + ": " + error_message)
+    {}
+};
+
+double parse_double_parameter(std::string const & value, std::string const & parameter_description) {
+    auto thresholdParam = numify<double>(value);
+    if (thresholdParam.isError()) {
+        throw ParsingError{parameter_description, thresholdParam.error()};
+    }
+    return thresholdParam.get();
+}
+
 static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
     Option<Resources> resources;
     Option<double> loadThreshold1Min;
@@ -221,49 +237,35 @@ static mesos::slave::ResourceEstimator* create(const mesos::Parameters& paramete
     Option<double> loadThreshold15Min;
     Option<Bytes> memThreshold;
 
-    for(auto const & parameter: parameters.parameter()) {
-        // Parse the resource to offer for oversubscription
-        if (parameter.key() == "resources") {
-            Try<Resources> parsed = Resources::parse(parameter.value());
-            if (parsed.isError()) {
-                LOG(ERROR) << "Failed to parse resources to offer for oversubscription: " << parsed.error();
-                return nullptr;
+    try {
+        for(auto const & parameter: parameters.parameter()) {
+            // Parse the resource to offer for oversubscription
+            if (parameter.key() == "resources") {
+                Try<Resources> parsed = Resources::parse(parameter.value());
+                if (parsed.isError()) {
+                    throw ParsingError("resources", parsed.error());
+                }
+                resources = parsed.get();
             }
-            resources = parsed.get();
+
+            // Parse any thresholds
+            if (parameter.key() == "load_threshold_1min") {
+                loadThreshold1Min = parse_double_parameter(parameter.value(), "1 min load threshold");
+            } else if (parameter.key() == "load_threshold_5min") {
+                loadThreshold5Min = parse_double_parameter(parameter.value(), "5 min load threshold");
+            } else if (parameter.key() == "load_threshold_15min") {
+                loadThreshold15Min = parse_double_parameter(parameter.value(), "15 min load threshold");
+            } else if (parameter.key() == "mem_threshold") {
+                auto thresholdParam = Bytes::parse(parameter.value() + "MB");
+                if (thresholdParam.isError()) {
+                    throw ParsingError("memory threshold", thresholdParam.error());
+                }
+                memThreshold = thresholdParam.get();
+            }
         }
-
-        // Parse any thresholds
-        if (parameter.key() == "load_threshold_1min") {
-            auto thresholdParam = numify<double>(parameter.value());
-            if (thresholdParam.isError()) {
-                LOG(ERROR) << "Failed to parse 1 min load threshold: " << thresholdParam.error();
-                return nullptr;
-            }
-            loadThreshold1Min = thresholdParam.get();
-
-        } else if (parameter.key() == "load_threshold_5min") {
-            auto thresholdParam = numify<double>(parameter.value());
-            if (thresholdParam.isError()) {
-                LOG(ERROR) << "Failed to parse 5 min load threshold: " << thresholdParam.error();
-                return nullptr;
-            }
-            loadThreshold5Min = thresholdParam.get();
-
-        } else if (parameter.key() == "load_threshold_15min") {
-            auto thresholdParam = numify<double>(parameter.value());
-            if (thresholdParam.isError()) {
-                LOG(ERROR) << "Failed to parse 15 min load threshold: " << thresholdParam.error();
-                return nullptr;
-            }
-            loadThreshold15Min = thresholdParam.get();
-        } else if (parameter.key() == "mem_threshold") {
-            auto thresholdParam = Bytes::parse(parameter.value() + "MB");
-            if (thresholdParam.isError()) {
-                LOG(ERROR) << "Failed to parse memory threshold: " << thresholdParam.error();
-                return nullptr;
-            }
-            memThreshold = thresholdParam.get();
-        }
+    } catch(ParsingError e) {
+        LOG(ERROR) << e.message;
+        return nullptr;
     }
 
     if (resources.isNone()) {
