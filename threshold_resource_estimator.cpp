@@ -58,7 +58,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     loadThreshold5Min{loadThreshold5Min},
     loadThreshold15Min{loadThreshold15Min},
     memThreshold{memThreshold}
-{};
+{}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
