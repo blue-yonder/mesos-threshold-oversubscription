@@ -5,6 +5,14 @@ All notable changes to this project are noted in this file. This project adheres
 Versioning](http://semver.org/).
 
 
+UNRELEASED
+----------
+
+### Changed
+
+* Only report first load threshold detected to be exceeded, not all.
+
+
 0.1.0 (2016-07-28)
 ------------------
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.9)  # CMake version provided by Debian Wheezy
 project(threshold_resource_estimator CXX C)  # Language C is required by GTest
 set(PROJECT_MAJOR_VERSION 0)
 set(PROJECT_MINOR_VERSION 1)
-set(PROJECT_PATCH_VERSION 0)
+set(PROJECT_PATCH_VERSION 1)
 set(PROJECT_VERSION "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_VERSION}")
 
 if(NOT CMAKE_BUILD_TYPE)

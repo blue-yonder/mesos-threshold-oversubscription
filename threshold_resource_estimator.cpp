@@ -90,13 +90,11 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
         return false;
     }
 
-    bool overloaded = false;
-
     if (loadThreshold1Min.isSome()) {
         if (load.get().one >= loadThreshold1Min.get()) {
             LOG(INFO) << "System 1 minute load average " << load.get().one
                       << " reached threshold " << loadThreshold1Min.get() << ".";
-            overloaded = true;
+            return true;
         }
     }
 
@@ -104,7 +102,7 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
         if (load.get().five >= loadThreshold5Min.get()) {
             LOG(INFO) << "System 5 minutes load average " << load.get().five
                       << " reached threshold " << loadThreshold5Min.get() << ".";
-            overloaded = true;
+            return true;
         }
     }
 
@@ -112,12 +110,13 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
         if (load.get().fifteen >= loadThreshold15Min.get()) {
             LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
                       << " reached threshold " << loadThreshold15Min.get() << ".";
-            overloaded = true;
+            return true;
         }
     }
 
-    return overloaded;
+    return false;
 }
+
 
 namespace {
 
