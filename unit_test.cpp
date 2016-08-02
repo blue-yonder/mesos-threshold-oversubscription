@@ -58,7 +58,7 @@ private:
 
 class LoadMock {
 public:
-    LoadMock() : value{std::make_shared<os::Load>()} {};
+    LoadMock() : value{std::make_shared<Try<os::Load>>(os::Load{0, 0, 0})} {};
 
     Try<os::Load> operator()() {
         return *value;
@@ -68,8 +68,12 @@ public:
         *value = os::Load{one, five, fifteen};
     }
 
+    void set_error() {
+        *value = Error("Injected by Test");
+    }
+
 private:
-    std::shared_ptr<os::Load> value;
+    std::shared_ptr<Try<os::Load>> value;
 };
 
 #define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
@@ -130,6 +134,14 @@ TEST(LoadMockTest, test_set) {
     mock.set(1.5, 2.5, 3.5);
     EXPECT_LOAD(1.5, 2.5, 3.5, mock().get());
     EXPECT_LOAD(1.5, 2.5, 3.5, copy().get());
+}
+
+TEST(LoadMockTest, test_set_error) {
+    LoadMock mock;
+
+    auto copy = mock;
+    mock.set_error();
+    EXPECT_TRUE(copy().isError());
 }
 
 
@@ -239,6 +251,14 @@ TEST_F(LoadThresholdTests, load15_exceeded) {
     load.set(3.9, 2.9, 10.0);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
+
+TEST_F(LoadThresholdTests, load_not_available) {
+    load.set_error();
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
 }
 
 
