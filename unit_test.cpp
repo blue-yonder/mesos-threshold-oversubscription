@@ -132,128 +132,158 @@ TEST(LoadMockTest, test_set) {
     EXPECT_LOAD(1.5, 2.5, 3.5, copy().get());
 }
 
-TEST(ThresholdResourceEstimatorTest, test_noop) {
+
+struct ThresholdResourceEstimatorTests : public ::testing::Test {
     UsageMock usage;
     LoadMock load;
-    ThresholdResourceEstimator estimator{load, Resources::parse("").get(), None(), None(), None(), None()};
-    estimator.initialize(usage);
-    auto available_resources = estimator.oversubscribable().get();
+    ThresholdResourceEstimator estimator;
+
+    ThresholdResourceEstimatorTests(
+        std::string const & resources,
+        Option<double> const & loadThreshold1Min,
+        Option<double> const & loadThreshold5Min,
+        Option<double> const & loadThreshold15Min,
+        Option<Bytes> const & memThreshold
+    ) : usage{}, load{}, estimator{
+        load,
+        Resources::parse(resources).get(),
+        loadThreshold1Min,
+        loadThreshold5Min,
+        loadThreshold15Min,
+        memThreshold
+    } {
+        estimator.initialize(usage);
+    }
+};
+
+
+struct NoResourcesTests : public ThresholdResourceEstimatorTests {
+    NoResourcesTests() : ThresholdResourceEstimatorTests {
+        "", None(), None(), None(), None()
+    } {
+    }
+};
+
+TEST_F(NoResourcesTests, noop) {
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST(ThresholdResourceEstimatorTest, test_underutilized) {
-    UsageMock usage;  // no usage at all
-    LoadMock load;
-    ThresholdResourceEstimator estimator{
-        load,
-        Resources::parse("cpus(*):2;mem(*):512").get(),
-        None(), None(), None(), None()
-    };
-    estimator.initialize(usage);
-    auto available_resources = estimator.oversubscribable().get();
+
+struct NoThresholdTests : public ThresholdResourceEstimatorTests {
+    NoThresholdTests() : ThresholdResourceEstimatorTests {
+        "cpus(*):2;mem(*):512", None(), None(), None(), None()
+    } {
+    }
+};
+
+TEST_F(NoThresholdTests, no_usage) {
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
-    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
-
-    // Usage of revocable resources reduces offers
-    usage.set("cpus(*):1.5;mem(*):128", "", "0B", "0B");
-    available_resources = estimator.oversubscribable().get();
-    EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("384MB").get(), available_resources.revocable().mem().get());
-
-    // Usage of non-revocable resources is ignored
-    usage.set("", "cpus(*):1.5;mem(*):128", "0B", "0B");
-    available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
     EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
 }
 
-TEST(ThresholdResourceEstimatorTest, test_load_threshold_exceeded) {
-    UsageMock usage;  // no usage at all
-    LoadMock load;
-    load.set(3.9, 2.9, 1.9);
-    ThresholdResourceEstimator estimator{
-        load,
-        Resources::parse("cpus(*):2;mem(*):512").get(),
-        4,
-        3,
-        2,
-        None()
-    };
-    estimator.initialize(usage);
+TEST_F(NoThresholdTests, revocable_usage_reduces_offers) {
+    usage.set("cpus(*):1.5;mem(*):128", "", "0B", "0B");
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("384MB").get(), available_resources.revocable().mem().get());
+}
 
-    // test _not_ exceeded
-    auto available_resources = estimator.oversubscribable().get();
+TEST_F(NoThresholdTests, non_revocable_usage_is_ignored) {
+    usage.set("", "cpus(*):1.5;mem(*):128", "0B", "0B");
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
+    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+}
+
+
+struct LoadThresholdTests : public ThresholdResourceEstimatorTests {
+    LoadThresholdTests() : ThresholdResourceEstimatorTests {
+        "cpus(*):2;mem(*):512", 4, 3, 2, None()
+    } {
+        load.set(3.9, 2.9, 1.9);
+    }
+};
+
+TEST_F(LoadThresholdTests, not_exceeded) {
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
     EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+}
 
-    // test 1 minute threshold exceeded
+TEST_F(LoadThresholdTests, load1_exceeded) {
     load.set(4.0, 2.9, 1.9);
-    available_resources = estimator.oversubscribable().get();
+    auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
     load.set(10.0, 2.9, 1.9);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
 
-    // test 5 minute threshold exceeded
+TEST_F(LoadThresholdTests, load5_exceeded) {
     load.set(3.9, 3.0, 1.9);
-    available_resources = estimator.oversubscribable().get();
+    auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
     load.set(3.9, 10.0, 1.9);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
 
-    // test 15 minute threshold exceeded
+TEST_F(LoadThresholdTests, load15_exceeded) {
     load.set(3.9, 2.9, 2.0);
-    available_resources = estimator.oversubscribable().get();
+    auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
     load.set(3.9, 2.9, 10.0);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST(ThresholdResourceEstimatorTest, test_mem_threshold_exceeded) {
-    UsageMock usage;
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "128MB", "128MB");
-    LoadMock load;
-    load.set(3.9, 2.9, 1.9);
-    ThresholdResourceEstimator estimator{
-        load,
-        Resources::parse("cpus(*):2;mem(*):512").get(),
-        None(),
-        None(),
-        None(),
-        Bytes::parse("384MB").get()
-    };
-    estimator.initialize(usage);
 
-    // test _not_ exceeded
-    auto available_resources = estimator.oversubscribable().get();
+struct MemThresholdTests : public ThresholdResourceEstimatorTests {
+    MemThresholdTests() : ThresholdResourceEstimatorTests {
+        "cpus(*):2;mem(*):512", None(), None(), None(), Bytes::parse("384MB").get()
+    } {
+        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "128MB", "128MB");
+        load.set(3.9, 2.9, 1.9);
+    }
+};
+
+TEST_F(MemThresholdTests, not_exceeded) {
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
+}
 
-    // test threshold reached
+TEST_F(MemThresholdTests, reached_by_revocable) {
     usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "384MB", "0B");
-    available_resources = estimator.oversubscribable().get();
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
 
+TEST_F(MemThresholdTests, reached_by_non_revocable) {
     usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "0B", "384MB");
-    available_resources = estimator.oversubscribable().get();
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
 
-    // test threshold exceeded in non-revocable + revocable
+TEST_F(MemThresholdTests, exceeded_by_combined_usage) {
     usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "256MB", "256MB");
-    available_resources = estimator.oversubscribable().get();
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
 
-    // Ensure proper fallback in case resource statistics are not provided
+TEST_F(MemThresholdTests, no_statistices_and_allocated_below_threshold) {
     usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", None(), None());
-    available_resources = estimator.oversubscribable().get();
-    EXPECT_FALSE(available_resources.empty());  // allocated resources below threshold
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+}
 
+TEST_F(MemThresholdTests, no_statistices_and_allocated_reaches_threshold) {
     usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):256", None(), None());
-    available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());  // combined allocated resources reached threshold
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
 }
 
 }
