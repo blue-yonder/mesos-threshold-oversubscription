@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.9)  # CMake version provided by Debian Wheezy
 project(threshold_resource_estimator CXX C)  # Language C is required by GTest
 set(PROJECT_MAJOR_VERSION 0)
 set(PROJECT_MINOR_VERSION 2)
-set(PROJECT_PATCH_VERSION 0)
+set(PROJECT_PATCH_VERSION 1)
 set(PROJECT_VERSION "${PROJECT_MAJOR_VERSION}.${PROJECT_MINOR_VERSION}.${PROJECT_PATCH_VERSION}")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -45,7 +45,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
 # Define the estimator library
 #
 
-add_library("${CMAKE_PROJECT_NAME}" SHARED threshold_resource_estimator.cpp)
+add_library("${CMAKE_PROJECT_NAME}" SHARED threshold_resource_estimator.cpp os.cpp)
 target_link_libraries("${CMAKE_PROJECT_NAME}" ${MESOS_LIBRARIES})
 set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES VERSION "${PROJECT_VERSION}")
 install(
@@ -92,3 +92,8 @@ add_executable(unit_test unit_test.cpp)
 add_dependencies(unit_test GTest)
 target_link_libraries(unit_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
 add_test("UnitTests" unit_test)
+
+add_executable(os_test os_test.cpp)
+add_dependencies(os_test GTest)
+target_link_libraries(os_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
+add_test("OSHelperTests" os_test)
