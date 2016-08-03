@@ -51,7 +51,7 @@ class LoadMock {
 public:
     LoadMock() : value{std::make_shared<Try<os::Load>>(os::Load{0, 0, 0})} {};
 
-    Try<os::Load> operator()() {
+    Try<os::Load> operator()() const {
         return *value;
     }
 
@@ -78,7 +78,7 @@ class MemoryMock {
 public:
     MemoryMock() : value{std::make_shared<Try<os::Memory>>(os::Memory{0, 0, 0, 0})} {};
 
-    Try<os::Memory> operator()() {
+    Try<os::Memory> operator()() const {
         return *value;
     }
 

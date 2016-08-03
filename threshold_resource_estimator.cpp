@@ -31,9 +31,9 @@ public:
     );
     Future<Resources> oversubscribable();
 private:
-    Future<Resources> calcUnusedResources(ResourceUsage const & usage);
-    bool loadExceedsThresholds();
-    bool memExceedsThreshold();
+    Future<Resources> calcUnusedResources(ResourceUsage const & usage);  // process::defer can't handle const methods
+    bool loadExceedsThresholds() const;
+    bool memExceedsThreshold() const;
 
     std::function<Future<ResourceUsage>()> const usage;
     std::function<Try<os::Load>()> const load;
@@ -77,15 +77,15 @@ Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 
 Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const & usage) {
     Resources allocatedRevocable;
-    for(auto & executor: usage.executors()) {
+    for(auto const & executor: usage.executors()) {
         allocatedRevocable += Resources(executor.allocated()).revocable();
     }
 
     return fixed - allocatedRevocable;
 }
 
-bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
-    Try<os::Load> load = this->load();
+bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() const {
+    Try<os::Load> const load = this->load();
 
     if (load.isError()) {
         LOG(ERROR) << "Failed to fetch system load: " + load.error();
@@ -120,7 +120,7 @@ bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() {
 }
 
 
-bool ThresholdResourceEstimatorProcess::memExceedsThreshold() {
+bool ThresholdResourceEstimatorProcess::memExceedsThreshold() const {
     if(memThreshold.isSome()) {
         auto const memoryInfo = memory();
 
@@ -222,7 +222,7 @@ double parse_double_parameter(std::string const & value, std::string const & par
     return thresholdParam.get();
 }
 
-static mesos::slave::ResourceEstimator* create(const mesos::Parameters& parameters) {
+static mesos::slave::ResourceEstimator* create(mesos::Parameters const & parameters) {
     Option<Resources> resources;
     Option<double> loadThreshold1Min;
     Option<double> loadThreshold5Min;

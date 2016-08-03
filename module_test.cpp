@@ -161,7 +161,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_initialization) {
         "cpus(*):2;mem(*):512", None(), None(), None(), None()  // no thresholds set
     ))};
     estimator->initialize(noUsage);
-    auto available_resources = estimator->oversubscribable().get();
+    auto const available_resources = estimator->oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
     EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
@@ -171,7 +171,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_1min) {
         "cpus(*):2;mem(*):512", "0.0", None(), None(), None()  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
-    auto available_resources = estimator->oversubscribable().get();
+    auto const available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
@@ -180,7 +180,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_5min) {
         "cpus(*):2;mem(*):512", None(), "0.0", None(), None()  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
-    auto available_resources = estimator->oversubscribable().get();
+    auto const available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
@@ -189,7 +189,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_15min) {
         "cpus(*):2;mem(*):512", None(), None(), "0.0", None()  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
-    auto available_resources = estimator->oversubscribable().get();
+    auto const available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
@@ -198,7 +198,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_mem_threshold) {
         "cpus(*):2;mem(*):512", None(), None(), None(), "0"  // absurdly low memore limit that will always be hit
     ))};
     estimator->initialize(noUsage);
-    auto available_resources = estimator->oversubscribable().get();
+    auto const available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
