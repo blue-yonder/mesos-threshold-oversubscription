@@ -11,6 +11,7 @@ UNRELEASED
 ### Changed
 
 * All memory usage in the system is taken into account, not only that by Mesos executors.
+* If system load cannot be measured any configured load threshold is assumed to be exceeded.
 * Only report first load threshold detected to be exceeded, not all.
 
 

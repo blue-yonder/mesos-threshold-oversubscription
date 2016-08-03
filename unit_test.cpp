@@ -286,9 +286,13 @@ TEST_F(LoadThresholdTests, load15_exceeded) {
 TEST_F(LoadThresholdTests, load_not_available) {
     load.set_error();
     auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_TRUE(available_resources.empty());
+}
+
+TEST_F(NoThresholdTests, load_not_available) {
+    load.set_error();
+    auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
-    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 
@@ -323,6 +327,12 @@ TEST_F(MemThresholdTests, memory_statistics_not_available) {
     memory.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
+
+TEST_F(NoThresholdTests, memory_statistics_not_available) {
+    memory.set_error();
+    auto const available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
 }
 
 }

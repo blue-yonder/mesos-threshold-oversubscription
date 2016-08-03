@@ -85,32 +85,29 @@ Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(Resourc
 }
 
 bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() const {
-    Try<os::Load> const load = this->load();
+    if(loadThreshold1Min.isSome() or loadThreshold5Min.isSome() or loadThreshold15Min.isSome()) {
+        Try<os::Load> const loadInfo = load();
 
-    if (load.isError()) {
-        LOG(ERROR) << "Failed to fetch system load: " + load.error();
-        return false;
-    }
+        if(loadInfo.isError()) {
+            LOG(ERROR) << "Failed to fetch system loadInfo: " + loadInfo.error();
+            LOG(INFO)  << "Assuming load thresholds to be exceeded.";
+            return true;
+        }
 
-    if (loadThreshold1Min.isSome()) {
-        if (load.get().one >= loadThreshold1Min.get()) {
-            LOG(INFO) << "System 1 minute load average " << load.get().one
+        if(loadThreshold1Min.isSome() and loadInfo.get().one >= loadThreshold1Min.get()) {
+            LOG(INFO) << "System 1 minute load average " << loadInfo.get().one
                       << " reached threshold " << loadThreshold1Min.get() << ".";
             return true;
         }
-    }
 
-    if (loadThreshold5Min.isSome()) {
-        if (load.get().five >= loadThreshold5Min.get()) {
-            LOG(INFO) << "System 5 minutes load average " << load.get().five
+        if(loadThreshold5Min.isSome() and loadInfo.get().five >= loadThreshold5Min.get()) {
+            LOG(INFO) << "System 5 minutes load average " << loadInfo.get().five
                       << " reached threshold " << loadThreshold5Min.get() << ".";
             return true;
         }
-    }
 
-    if (loadThreshold15Min.isSome()) {
-        if (load.get().fifteen >= loadThreshold15Min.get()) {
-            LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
+        if(loadThreshold15Min.isSome() and loadInfo.get().fifteen >= loadThreshold15Min.get()) {
+            LOG(INFO) << "System 15 minutes load average " << loadInfo.get().fifteen
                       << " reached threshold " << loadThreshold15Min.get() << ".";
             return true;
         }
@@ -126,7 +123,7 @@ bool ThresholdResourceEstimatorProcess::memExceedsThreshold() const {
 
         if(memoryInfo.isError()) {
             LOG(ERROR) << "Failed to fetch memory information: " << memoryInfo.error();
-            LOG(ERROR) << "Assuming memory threshold to be exceeded";
+            LOG(INFO)  << "Assuming memory threshold to be exceeded";
             return true;
         }
 
