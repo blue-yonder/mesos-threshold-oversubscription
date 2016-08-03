@@ -6,6 +6,8 @@
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
 
+#include "os.hpp"
+
 using process::dispatch;
 using process::Failure;
 using process::Future;
@@ -23,8 +25,8 @@ class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstima
 public:
     ThresholdResourceEstimatorProcess(
         std::function<Future<ResourceUsage>()> const &,
-        std::function<Try<os::Load>()> const &,
-        std::function<Try<os::Memory>()> const &,
+        std::function<Try<::os::Load>()> const &,
+        std::function<Try<os::MemInfo>()> const &,
         Resources const &,
         Option<double> const &, Option<double> const &, Option<double> const &,
         Option<Bytes> const &
@@ -36,8 +38,8 @@ private:
     bool memExceedsThreshold() const;
 
     std::function<Future<ResourceUsage>()> const usage;
-    std::function<Try<os::Load>()> const load;
-    std::function<Try<os::Memory>()> const memory;
+    std::function<Try<::os::Load>()> const load;
+    std::function<Try<os::MemInfo>()> const memory;
     Resources const fixed;
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
@@ -48,8 +50,8 @@ private:
 
 ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     std::function<Future<ResourceUsage>()> const & usage,
-    std::function<Try<os::Load>()> const & load,
-    std::function<Try<os::Memory>()> const & memory,
+    std::function<Try<::os::Load>()> const & load,
+    std::function<Try<os::MemInfo>()> const & memory,
     Resources const & fixed,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
@@ -86,7 +88,7 @@ Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(Resourc
 
 bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() const {
     if(loadThreshold1Min.isSome() or loadThreshold5Min.isSome() or loadThreshold15Min.isSome()) {
-        Try<os::Load> const loadInfo = load();
+        Try<::os::Load> const loadInfo = load();
 
         if(loadInfo.isError()) {
             LOG(ERROR) << "Failed to fetch system loadInfo: " + loadInfo.error();
@@ -127,7 +129,7 @@ bool ThresholdResourceEstimatorProcess::memExceedsThreshold() const {
             return true;
         }
 
-        auto usedMemory = memoryInfo.get().total - memoryInfo.get().free;
+        auto usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
         if(usedMemory >= memThreshold.get()) {
             LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
                       << "reached threshold " << memThreshold.get().megabytes() << " MB.";
@@ -152,8 +154,8 @@ Resources makeRevocable(Resources const & any) {
 }
 
 ThresholdResourceEstimator::ThresholdResourceEstimator(
-    std::function<Try<os::Load>()> const & load,
-    std::function<Try<os::Memory>()> const & memory,
+    std::function<Try<::os::Load>()> const & load,
+    std::function<Try<os::MemInfo>()> const & memory,
     Resources const & fixed,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
@@ -264,7 +266,7 @@ static mesos::slave::ResourceEstimator* create(mesos::Parameters const & paramet
 
     return new ThresholdResourceEstimator(
         os::loadavg,
-        os::memory,
+        com::blue_yonder::os::meminfo,
         resources.get(),
         loadThreshold1Min,
         loadThreshold5Min,

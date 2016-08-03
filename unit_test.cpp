@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include "os.hpp"
+
 
 using process::Future;
 
@@ -11,6 +13,7 @@ using mesos::Resources;
 using mesos::ResourceUsage;
 
 using com::blue_yonder::ThresholdResourceEstimator;
+using com::blue_yonder::os::MemInfo;
 
 namespace {
 
@@ -74,20 +77,19 @@ private:
         EXPECT_EQ(expect_fifteen, load.fifteen); \
     } while(false); \
 
-class MemoryMock {
+class MemInfoMock {
 public:
-    MemoryMock() : value{std::make_shared<Try<os::Memory>>(os::Memory{0, 0, 0, 0})} {};
+    MemInfoMock() : value{std::make_shared<Try<MemInfo>>(MemInfo{0, 0, 0})} {};
 
-    Try<os::Memory> operator()() const {
+    Try<MemInfo> operator()() const {
         return *value;
     }
 
-    void set(std::string const & total, std::string const & free) {
-        *value = os::Memory{
+    void set(std::string const & total, std::string const & free, std::string const & cached) {
+        *value = MemInfo{
             Bytes::parse(total).get(),
             Bytes::parse(free).get(),
-            0,
-            0,
+            Bytes::parse(cached).get()
         };
     }
 
@@ -96,7 +98,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Try<os::Memory>> value;
+    std::shared_ptr<Try<MemInfo>> value;
 };
 
 
@@ -149,24 +151,25 @@ TEST(LoadMockTest, test_set_error) {
     EXPECT_TRUE(copy().isError());
 }
 
-TEST(MemoryMockTest, test_default) {
-    MemoryMock mock;
+TEST(MemInfoMockTest, test_default) {
+    MemInfoMock mock;
     auto const mem = mock().get();
     EXPECT_EQ(0, mem.total.bytes());
     EXPECT_EQ(0, mem.free.bytes());
 }
 
-TEST(MemoryMockTest, test_set) {
-    MemoryMock mock;
+TEST(MemInfoMockTest, test_set) {
+    MemInfoMock mock;
     auto copy = mock;
-    mock.set("1GB", "256MB");
+    mock.set("1GB", "128MB", "256MB");
     auto const mem = copy().get();
     EXPECT_EQ(1, mem.total.gigabytes());
-    EXPECT_EQ(256, mem.free.megabytes());
+    EXPECT_EQ(128, mem.free.megabytes());
+    EXPECT_EQ(256, mem.cached.megabytes());
 }
 
-TEST(MemoryMockTest, test_set_error) {
-    MemoryMock mock;
+TEST(MemInfoMockTest, test_set_error) {
+    MemInfoMock mock;
     auto copy = mock;
     mock.set_error();
     EXPECT_TRUE(copy().isError());
@@ -176,7 +179,7 @@ TEST(MemoryMockTest, test_set_error) {
 struct ThresholdResourceEstimatorTests : public ::testing::Test {
     UsageMock usage;
     LoadMock load;
-    MemoryMock memory;
+    MemInfoMock memory;
     ThresholdResourceEstimator estimator;
 
     ThresholdResourceEstimatorTests(
@@ -302,7 +305,7 @@ struct MemThresholdTests : public ThresholdResourceEstimatorTests {
     } {
         usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128");
         load.set(3.9, 2.9, 1.9);
-        memory.set("512MB", "256MB");
+        memory.set("512MB", "64MB", "256MB");
     }
 };
 
@@ -312,13 +315,13 @@ TEST_F(MemThresholdTests, not_exceeded) {
 }
 
 TEST_F(MemThresholdTests, reached) {
-    memory.set("512MB", "128MB");
+    memory.set("512MB", "64MB", "64MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
 TEST_F(MemThresholdTests, exceeded) {
-    memory.set("512MB", "0MB");
+    memory.set("512MB", "0MB", "0MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }

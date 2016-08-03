@@ -5,6 +5,14 @@ All notable changes to this project are noted in this file. This project adheres
 Versioning](http://semver.org/).
 
 
+UNRELEASED
+----------
+
+### Bugfix
+
+* Ignore cached memory when evaluating the memory threshold.
+
+
 0.2.0 (2016-08-03)
 ------------------
 
