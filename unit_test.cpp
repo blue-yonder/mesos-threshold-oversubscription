@@ -21,8 +21,7 @@ public:
     {};
 
     void set(
-        std::string const & revocable_allocated, std::string const & non_revocable_allocated,
-        Option<std::string> const & revocable_mem_used, Option<std::string> const & non_revocable_mem_used
+        std::string const & revocable_allocated, std::string const & non_revocable_allocated
     ) {
         value->Clear();
         auto * revocable_executor = value->add_executors();
@@ -32,10 +31,6 @@ public:
             mutable_resource->CopyFrom(parsed_resource);
             mutable_resource->mutable_revocable();  // mark as revocable
         }
-        if(revocable_mem_used.isSome()) {
-            auto revocable_stats = revocable_executor->mutable_statistics();
-            revocable_stats->set_mem_total_bytes(Bytes::parse(revocable_mem_used.get()).get().bytes());
-        }
 
         auto * non_revocable_executor = value->add_executors();
         auto non_revocable_resources = Resources::parse(non_revocable_allocated);
@@ -43,10 +38,6 @@ public:
             auto * mutable_resource = non_revocable_executor->add_allocated();
             mutable_resource->CopyFrom(parsed_resource);
             mutable_resource->clear_revocable();  // mark as non-revocable
-        }
-        if(non_revocable_mem_used.isSome()) {
-            auto non_revocable_stats = non_revocable_executor->mutable_statistics();
-            non_revocable_stats->set_mem_total_bytes(Bytes::parse(non_revocable_mem_used.get()).get().bytes());
         }
     }
     Future<ResourceUsage> operator()() const {
@@ -83,18 +74,42 @@ private:
         EXPECT_EQ(expect_fifteen, load.fifteen); \
     } while(false); \
 
+class MemoryMock {
+public:
+    MemoryMock() : value{std::make_shared<Try<os::Memory>>(os::Memory{0, 0, 0, 0})} {};
+
+    Try<os::Memory> operator()() {
+        return *value;
+    }
+
+    void set(std::string const & total, std::string const & free) {
+        *value = os::Memory{
+            Bytes::parse(total).get(),
+            Bytes::parse(free).get(),
+            0,
+            0,
+        };
+    }
+
+    void set_error() {
+        *value = Error("Injected by Test");
+    }
+
+private:
+    std::shared_ptr<Try<os::Memory>> value;
+};
+
+
 TEST(UsageMockTest, test_set) {
     UsageMock mock;
-    mock.set("cpus:3;mem:62", "cpus:1;mem:48", "50MB", "32MB");
+    mock.set("cpus:3;mem:62", "cpus:1;mem:48");
 
     ResourceUsage usage = mock().get();
     Resources allocatedRevocable;
     Resources allocatedNonRevocable;
-    uint64_t memUsed{0};
     for(auto & executor: usage.executors()) {
         allocatedRevocable += Resources(executor.allocated()).revocable();
         allocatedNonRevocable += Resources(executor.allocated()).nonRevocable();
-        memUsed += executor.statistics().mem_total_bytes();
     }
 
     EXPECT_EQ(2, usage.executors_size());
@@ -102,28 +117,18 @@ TEST(UsageMockTest, test_set) {
     EXPECT_EQ(Bytes::parse("62MB").get(), allocatedRevocable.mem().get());
     EXPECT_EQ(1, allocatedNonRevocable.cpus().get());
     EXPECT_EQ(Bytes::parse("48MB").get(), allocatedNonRevocable.mem().get());
-    EXPECT_EQ(Bytes::parse("82MB").get().bytes(), memUsed);
 
     // must also work for copy
     UsageMock copy = mock;
-    mock.set("cpus:5;mem:127", "", "0B", "0B");
+    mock.set("cpus:5;mem:127", "");
     usage = copy().get();
 
     Resources copiedRevocable;
-    memUsed = 0;
     for(auto & executor: usage.executors()) {
         copiedRevocable += Resources(executor.allocated()).revocable();
-        memUsed += executor.statistics().mem_total_bytes();
     }
     EXPECT_EQ(5, copiedRevocable.cpus().get());
     EXPECT_EQ(Bytes::parse("127MB").get(), copiedRevocable.mem().get());
-
-    // can ommit usage values
-    mock.set("cpus:5;mem:127", "", None(), None());
-    usage = mock().get();
-    for(auto & executor: usage.executors()) {
-        EXPECT_FALSE(executor.has_statistics());
-    }
 }
 
 TEST(LoadMockTest, test_set) {
@@ -144,10 +149,34 @@ TEST(LoadMockTest, test_set_error) {
     EXPECT_TRUE(copy().isError());
 }
 
+TEST(MemoryMockTest, test_default) {
+    MemoryMock mock;
+    auto const mem = mock().get();
+    EXPECT_EQ(0, mem.total.bytes());
+    EXPECT_EQ(0, mem.free.bytes());
+}
+
+TEST(MemoryMockTest, test_set) {
+    MemoryMock mock;
+    auto copy = mock;
+    mock.set("1GB", "256MB");
+    auto const mem = copy().get();
+    EXPECT_EQ(1, mem.total.gigabytes());
+    EXPECT_EQ(256, mem.free.megabytes());
+}
+
+TEST(MemoryMockTest, test_set_error) {
+    MemoryMock mock;
+    auto copy = mock;
+    mock.set_error();
+    EXPECT_TRUE(copy().isError());
+}
+
 
 struct ThresholdResourceEstimatorTests : public ::testing::Test {
     UsageMock usage;
     LoadMock load;
+    MemoryMock memory;
     ThresholdResourceEstimator estimator;
 
     ThresholdResourceEstimatorTests(
@@ -156,8 +185,9 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
         Option<double> const & loadThreshold5Min,
         Option<double> const & loadThreshold15Min,
         Option<Bytes> const & memThreshold
-    ) : usage{}, load{}, estimator{
+    ) : usage{}, load{}, memory{}, estimator{
         load,
+        memory,
         Resources::parse(resources).get(),
         loadThreshold1Min,
         loadThreshold5Min,
@@ -197,14 +227,14 @@ TEST_F(NoThresholdTests, no_usage) {
 }
 
 TEST_F(NoThresholdTests, revocable_usage_reduces_offers) {
-    usage.set("cpus(*):1.5;mem(*):128", "", "0B", "0B");
+    usage.set("cpus(*):1.5;mem(*):128", "");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
     EXPECT_EQ(Bytes::parse("384MB").get(), available_resources.revocable().mem().get());
 }
 
 TEST_F(NoThresholdTests, non_revocable_usage_is_ignored) {
-    usage.set("", "cpus(*):1.5;mem(*):128", "0B", "0B");
+    usage.set("", "cpus(*):1.5;mem(*):128");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
     EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
@@ -266,8 +296,9 @@ struct MemThresholdTests : public ThresholdResourceEstimatorTests {
     MemThresholdTests() : ThresholdResourceEstimatorTests {
         "cpus(*):2;mem(*):512", None(), None(), None(), Bytes::parse("384MB").get()
     } {
-        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "128MB", "128MB");
+        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128");
         load.set(3.9, 2.9, 1.9);
+        memory.set("512MB", "256MB");
     }
 };
 
@@ -276,32 +307,20 @@ TEST_F(MemThresholdTests, not_exceeded) {
     EXPECT_FALSE(available_resources.empty());
 }
 
-TEST_F(MemThresholdTests, reached_by_revocable) {
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "384MB", "0B");
+TEST_F(MemThresholdTests, reached) {
+    memory.set("512MB", "128MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(MemThresholdTests, reached_by_non_revocable) {
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "0B", "384MB");
+TEST_F(MemThresholdTests, exceeded) {
+    memory.set("512MB", "0MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(MemThresholdTests, exceeded_by_combined_usage) {
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", "256MB", "256MB");
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
-
-TEST_F(MemThresholdTests, no_statistices_and_allocated_below_threshold) {
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128", None(), None());
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_FALSE(available_resources.empty());
-}
-
-TEST_F(MemThresholdTests, no_statistices_and_allocated_reaches_threshold) {
-    usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):256", None(), None());
+TEST_F(MemThresholdTests, memory_statistics_not_available) {
+    memory.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }

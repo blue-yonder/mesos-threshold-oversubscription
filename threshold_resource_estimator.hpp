@@ -4,6 +4,7 @@
 
 namespace os {
     struct Load;
+    struct Memory;
 }
 
 namespace com { namespace blue_yonder {
@@ -15,6 +16,7 @@ class ThresholdResourceEstimator : public mesos::slave::ResourceEstimator
 public:
     ThresholdResourceEstimator(
         std::function<Try<os::Load>()> const & load,
+        std::function<Try<os::Memory>()> const & memory,
         mesos::Resources const & fixed,
         Option<double> const & loadThreshold1Min,
         Option<double> const & loadThreshold5Min,
@@ -28,6 +30,7 @@ public:
 private:
     process::Owned<ThresholdResourceEstimatorProcess> process;
     std::function<Try<os::Load>()> const load;
+    std::function<Try<os::Memory>()> const memory;
     mesos::Resources const fixed;
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
