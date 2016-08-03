@@ -163,7 +163,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_initialization) {
     estimator->initialize(noUsage);
     auto available_resources = estimator->oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_load_threshold_1min) {

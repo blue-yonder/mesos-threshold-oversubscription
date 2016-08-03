@@ -114,9 +114,9 @@ TEST(UsageMockTest, test_set) {
 
     EXPECT_EQ(2, usage.executors_size());
     EXPECT_EQ(3, allocatedRevocable.cpus().get());
-    EXPECT_EQ(Bytes::parse("62MB").get(), allocatedRevocable.mem().get());
+    EXPECT_EQ(62, allocatedRevocable.mem().get().megabytes());
     EXPECT_EQ(1, allocatedNonRevocable.cpus().get());
-    EXPECT_EQ(Bytes::parse("48MB").get(), allocatedNonRevocable.mem().get());
+    EXPECT_EQ(48, allocatedNonRevocable.mem().get().megabytes());
 
     // must also work for copy
     UsageMock copy = mock;
@@ -128,7 +128,7 @@ TEST(UsageMockTest, test_set) {
         copiedRevocable += Resources(executor.allocated()).revocable();
     }
     EXPECT_EQ(5, copiedRevocable.cpus().get());
-    EXPECT_EQ(Bytes::parse("127MB").get(), copiedRevocable.mem().get());
+    EXPECT_EQ(127, copiedRevocable.mem().get().megabytes());
 }
 
 TEST(LoadMockTest, test_set) {
@@ -223,21 +223,21 @@ TEST_F(NoThresholdTests, no_usage) {
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 TEST_F(NoThresholdTests, revocable_usage_reduces_offers) {
     usage.set("cpus(*):1.5;mem(*):128", "");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("384MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(384, available_resources.revocable().mem().get().megabytes());
 }
 
 TEST_F(NoThresholdTests, non_revocable_usage_is_ignored) {
     usage.set("", "cpus(*):1.5;mem(*):128");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 
@@ -253,7 +253,7 @@ TEST_F(LoadThresholdTests, not_exceeded) {
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 TEST_F(LoadThresholdTests, load1_exceeded) {
@@ -288,7 +288,7 @@ TEST_F(LoadThresholdTests, load_not_available) {
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
     EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(Bytes::parse("512MB").get(), available_resources.revocable().mem().get());
+    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
 
