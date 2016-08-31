@@ -62,25 +62,25 @@ mesos::Parameters make_parameters(
         parameter->set_value(fixed);
     }
 
-    if(load_one.isSome()) {
+    if (load_one.isSome()) {
         auto * parameter = parameters.add_parameter();
         parameter->set_key("load_threshold_1min");
         parameter->set_value(load_one.get());
     }
 
-    if(load_five.isSome()) {
+    if (load_five.isSome()) {
         auto * parameter = parameters.add_parameter();
         parameter->set_key("load_threshold_5min");
         parameter->set_value(load_five.get());
     }
 
-    if(load_fifteen.isSome()) {
+    if (load_fifteen.isSome()) {
         auto * parameter = parameters.add_parameter();
         parameter->set_key("load_threshold_15min");
         parameter->set_value(load_fifteen.get());
     }
 
-    if(mem_threshold.isSome()) {
+    if (mem_threshold.isSome()) {
         auto * parameter = parameters.add_parameter();
         parameter->set_key("mem_threshold");
         parameter->set_value(mem_threshold.get());
@@ -119,15 +119,15 @@ void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
 }
 
 Try<ModuleBase*> ThresholdResourceEstimatorTest::loadModule() {
-    if(this->moduleBase == nullptr) {
+    if (this->moduleBase == nullptr) {
         auto const path = "./" + os::libraries::expandName(libraryName);
         Try<Nothing> result = this->dynamicLibrary->open(path);
-        if(!result.isSome()) {
+        if (!result.isSome()) {
             return Error("Error opening library of module: '" + moduleName + "': " + result.error());
         }
 
         Try<void*> symbol = this->dynamicLibrary->loadSymbol(moduleName);
-        if(symbol.isError()) {
+        if (symbol.isError()) {
             return Error("Error loading module '" + moduleName + "': " + symbol.error());
         }
 
