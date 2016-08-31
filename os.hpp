@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stout/bytes.hpp>
 
 namespace com { namespace blue_yonder { namespace os {
