@@ -17,14 +17,15 @@ using com::blue_yonder::os::MemInfo;
 
 namespace {
 
-class UsageMock {
+class ResourceUsageMock {
 public:
-    UsageMock()
+    ResourceUsageMock()
         : value{std::make_shared<ResourceUsage>()}
     {};
 
     void set(
-        std::string const & revocable_allocated, std::string const & non_revocable_allocated
+        std::string const & revocable_allocated,
+        std::string const & non_revocable_allocated
     ) {
         value->Clear();
         auto * revocable_executor = value->add_executors();
@@ -70,13 +71,6 @@ private:
     std::shared_ptr<Try<os::Load>> value;
 };
 
-#define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
-    do { \
-        EXPECT_EQ(expect_one, load.one); \
-        EXPECT_EQ(expect_five, load.five); \
-        EXPECT_EQ(expect_fifteen, load.fifteen); \
-    } while(false); \
-
 class MemInfoMock {
 public:
     MemInfoMock() : value{std::make_shared<Try<MemInfo>>(MemInfo{0, 0, 0})} {};
@@ -102,8 +96,8 @@ private:
 };
 
 
-TEST(UsageMockTest, test_set) {
-    UsageMock mock;
+TEST(ResourceUsageMockTest, test_set) {
+    ResourceUsageMock mock;
     mock.set("cpus:3;mem:62", "cpus:1;mem:48");
 
     ResourceUsage usage = mock().get();
@@ -121,7 +115,7 @@ TEST(UsageMockTest, test_set) {
     EXPECT_EQ(48, allocatedNonRevocable.mem().get().megabytes());
 
     // must also work for copy
-    UsageMock copy = mock;
+    ResourceUsageMock copy = mock;
     mock.set("cpus:5;mem:127", "");
     usage = copy().get();
 
@@ -132,6 +126,13 @@ TEST(UsageMockTest, test_set) {
     EXPECT_EQ(5, copiedRevocable.cpus().get());
     EXPECT_EQ(127, copiedRevocable.mem().get().megabytes());
 }
+
+#define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
+    do { \
+        EXPECT_EQ(expect_one, load.one); \
+        EXPECT_EQ(expect_five, load.five); \
+        EXPECT_EQ(expect_fifteen, load.fifteen); \
+    } while(false); \
 
 TEST(LoadMockTest, test_set) {
     LoadMock mock;
@@ -177,7 +178,7 @@ TEST(MemInfoMockTest, test_set_error) {
 
 
 struct ThresholdResourceEstimatorTests : public ::testing::Test {
-    UsageMock usage;
+    ResourceUsageMock usage;
     LoadMock load;
     MemInfoMock memory;
     ThresholdResourceEstimator estimator;
@@ -188,15 +189,19 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
         Option<double> const & loadThreshold5Min,
         Option<double> const & loadThreshold15Min,
         Option<Bytes> const & memThreshold
-    ) : usage{}, load{}, memory{}, estimator{
-        load,
-        memory,
-        Resources::parse(resources).get(),
-        loadThreshold1Min,
-        loadThreshold5Min,
-        loadThreshold15Min,
-        memThreshold
-    } {
+    ) :
+        usage{},
+        load{},
+        memory{},
+        estimator{
+            load,
+            memory,
+            Resources::parse(resources).get(),
+            loadThreshold1Min,
+            loadThreshold5Min,
+            loadThreshold15Min,
+            memThreshold}
+    {
         estimator.initialize(usage);
     }
 };
