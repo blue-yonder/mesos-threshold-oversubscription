@@ -22,9 +22,12 @@ This project uses CMake. Build requires mesos development headers and a compatib
 this repository creates a proper build environment for Debian Wheezy. Build and installation follow the usual CMake
 tripplet where on Debian Wheezy a compatible compiler must be selected:
 
-	cmake <path to source> CXX=g++-5 CC=gcc-5
-	make
-	make install
+    export CXX=g++-5
+    export CC=gcc-5
+    cmake <path to source>
+    make
+    make test
+    make install
 
 Configuration
 -------------
