@@ -24,7 +24,7 @@ public:
     ThresholdResourceEstimator(
         std::function<Try<::os::Load>()> const & load,
         std::function<Try<os::MemInfo>()> const & memory,
-        mesos::Resources const & fixed,
+        mesos::Resources const & totalRevocable,
         Option<double> const & loadThreshold1Min,
         Option<double> const & loadThreshold5Min,
         Option<double> const & loadThreshold15Min,
@@ -38,7 +38,7 @@ private:
     process::Owned<ThresholdResourceEstimatorProcess> process;
     std::function<Try<::os::Load>()> const load;
     std::function<Try<os::MemInfo>()> const memory;
-    mesos::Resources const fixed;
+    mesos::Resources const totalRevocable;
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
     Option<double> const loadThreshold15Min;

@@ -40,7 +40,7 @@ private:
     std::function<Future<ResourceUsage>()> const usage;
     std::function<Try<::os::Load>()> const load;
     std::function<Try<os::MemInfo>()> const memory;
-    Resources const fixed;
+    Resources const totalRevocable;
     Option<double> const loadThreshold1Min;
     Option<double> const loadThreshold5Min;
     Option<double> const loadThreshold15Min;
@@ -52,7 +52,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     std::function<Future<ResourceUsage>()> const & usage,
     std::function<Try<::os::Load>()> const & load,
     std::function<Try<os::MemInfo>()> const & memory,
-    Resources const & fixed,
+    Resources const & totalRevocable,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
     Option<double> const & loadThreshold15Min,
@@ -61,7 +61,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     usage{usage},
     load{load},
     memory{memory},
-    fixed{fixed},
+    totalRevocable{totalRevocable},
     loadThreshold1Min{loadThreshold1Min},
     loadThreshold5Min{loadThreshold5Min},
     loadThreshold15Min{loadThreshold15Min},
@@ -70,7 +70,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    if(loadExceedsThresholds() or memExceedsThreshold()) {
+    if (loadExceedsThresholds() or memExceedsThreshold()) {
         return Resources();
     }
 
@@ -79,64 +79,62 @@ Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 
 Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const & usage) {
     Resources allocatedRevocable;
-    for(auto const & executor: usage.executors()) {
+    for (auto const & executor: usage.executors()) {
         allocatedRevocable += Resources(executor.allocated()).revocable();
     }
 
-    return fixed - allocatedRevocable;
+    return totalRevocable - allocatedRevocable;
 }
 
 bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() const {
-    if(loadThreshold1Min.isSome() or loadThreshold5Min.isSome() or loadThreshold15Min.isSome()) {
+    if (loadThreshold1Min.isSome() or loadThreshold5Min.isSome() or loadThreshold15Min.isSome()) {
         Try<::os::Load> const loadInfo = load();
 
-        if(loadInfo.isError()) {
+        if (loadInfo.isError()) {
             LOG(ERROR) << "Failed to fetch system loadInfo: " + loadInfo.error();
             LOG(INFO)  << "Assuming load thresholds to be exceeded.";
             return true;
         }
 
-        if(loadThreshold1Min.isSome() and loadInfo.get().one >= loadThreshold1Min.get()) {
+        if (loadThreshold1Min.isSome() and loadInfo.get().one >= loadThreshold1Min.get()) {
             LOG(INFO) << "System 1 minute load average " << loadInfo.get().one
                       << " reached threshold " << loadThreshold1Min.get() << ".";
             return true;
         }
 
-        if(loadThreshold5Min.isSome() and loadInfo.get().five >= loadThreshold5Min.get()) {
+        if (loadThreshold5Min.isSome() and loadInfo.get().five >= loadThreshold5Min.get()) {
             LOG(INFO) << "System 5 minutes load average " << loadInfo.get().five
                       << " reached threshold " << loadThreshold5Min.get() << ".";
             return true;
         }
 
-        if(loadThreshold15Min.isSome() and loadInfo.get().fifteen >= loadThreshold15Min.get()) {
+        if (loadThreshold15Min.isSome() and loadInfo.get().fifteen >= loadThreshold15Min.get()) {
             LOG(INFO) << "System 15 minutes load average " << loadInfo.get().fifteen
                       << " reached threshold " << loadThreshold15Min.get() << ".";
             return true;
         }
     }
-
     return false;
 }
 
 
 bool ThresholdResourceEstimatorProcess::memExceedsThreshold() const {
-    if(memThreshold.isSome()) {
+    if (memThreshold.isSome()) {
         auto const memoryInfo = memory();
 
-        if(memoryInfo.isError()) {
+        if (memoryInfo.isError()) {
             LOG(ERROR) << "Failed to fetch memory information: " << memoryInfo.error();
             LOG(INFO)  << "Assuming memory threshold to be exceeded";
             return true;
         }
 
         auto usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
-        if(usedMemory >= memThreshold.get()) {
+        if (usedMemory >= memThreshold.get()) {
             LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
                       << "reached threshold " << memThreshold.get().megabytes() << " MB.";
             return true;
         }
     }
-
     return false;
 }
 
@@ -144,7 +142,7 @@ namespace {
 
 Resources makeRevocable(Resources const & any) {
     Resources revocable;
-    for(auto resource: any) {
+    for (auto resource: any) {
         resource.mutable_revocable();
         revocable += resource;
     }
@@ -156,7 +154,7 @@ Resources makeRevocable(Resources const & any) {
 ThresholdResourceEstimator::ThresholdResourceEstimator(
     std::function<Try<::os::Load>()> const & load,
     std::function<Try<os::MemInfo>()> const & memory,
-    Resources const & fixed,
+    Resources const & totalRevocable,
     Option<double> const & loadThreshold1Min,
     Option<double> const & loadThreshold5Min,
     Option<double> const & loadThreshold15Min,
@@ -164,7 +162,7 @@ ThresholdResourceEstimator::ThresholdResourceEstimator(
 ) :
     load{load},
     memory{memory},
-    fixed{makeRevocable(fixed)},
+    totalRevocable{makeRevocable(totalRevocable)},
     loadThreshold1Min{loadThreshold1Min},
     loadThreshold5Min{loadThreshold5Min},
     loadThreshold15Min{loadThreshold15Min},
@@ -177,9 +175,13 @@ Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<Resourc
     }
 
     process.reset(new ThresholdResourceEstimatorProcess(
-        usage, load, memory,
-        fixed,
-        loadThreshold1Min, loadThreshold5Min, loadThreshold15Min,
+        usage,
+        load,
+        memory,
+        totalRevocable,
+        loadThreshold1Min,
+        loadThreshold5Min,
+        loadThreshold15Min,
         memThreshold
     ));
     spawn(process.get());
@@ -191,7 +193,6 @@ Future<Resources> ThresholdResourceEstimator::oversubscribable() {
     if (process.get() == nullptr) {
         return Failure("Threshold resource estimator is not initialized");
     }
-
     return dispatch(process.get(), &ThresholdResourceEstimatorProcess::oversubscribable);
 }
 
@@ -229,7 +230,7 @@ static mesos::slave::ResourceEstimator* create(mesos::Parameters const & paramet
     Option<Bytes> memThreshold;
 
     try {
-        for(auto const & parameter: parameters.parameter()) {
+        for (auto const & parameter: parameters.parameter()) {
             // Parse the resource to offer for oversubscription
             if (parameter.key() == "resources") {
                 Try<Resources> parsed = Resources::parse(parameter.value());
