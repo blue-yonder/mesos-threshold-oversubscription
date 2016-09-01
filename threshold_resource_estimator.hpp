@@ -5,10 +5,8 @@
 #include <functional>
 
 #include <stout/bytes.hpp>
+#include <stout/os.hpp>
 
-namespace os {
-    struct Load;
-}
 
 namespace com { namespace blue_yonder {
 
@@ -25,10 +23,8 @@ public:
         std::function<Try<::os::Load>()> const & load,
         std::function<Try<os::MemInfo>()> const & memory,
         mesos::Resources const & totalRevocable,
-        Option<double> const & loadThreshold1Min,
-        Option<double> const & loadThreshold5Min,
-        Option<double> const & loadThreshold15Min,
-        Option<Bytes> const & memThreshold
+        ::os::Load const & loadThreshold,
+        Bytes const & memThreshold
     );
     virtual Try<Nothing> initialize(const std::function<process::Future<mesos::ResourceUsage>()>&) final;
     virtual process::Future<mesos::Resources> oversubscribable() final;
@@ -39,10 +35,8 @@ private:
     std::function<Try<::os::Load>()> const load;
     std::function<Try<os::MemInfo>()> const memory;
     mesos::Resources const totalRevocable;
-    Option<double> const loadThreshold1Min;
-    Option<double> const loadThreshold5Min;
-    Option<double> const loadThreshold15Min;
-    Option<Bytes> const memThreshold;
+    ::os::Load const loadThreshold;
+    Bytes const memThreshold;
 };
 
 } }

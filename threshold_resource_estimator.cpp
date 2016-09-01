@@ -1,5 +1,7 @@
 #include "threshold_resource_estimator.hpp"
 
+#include <limits>
+
 #include <stout/os.hpp>
 
 #include <process/defer.hpp>
@@ -22,59 +24,54 @@ using mesos::ResourceUsage;
 using com::blue_yonder::ThresholdResourceEstimator;
 using com::blue_yonder::ThresholdResourceEstimatorProcess;
 
+using ::os::Load;
+
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
 public:
     ThresholdResourceEstimatorProcess(
         std::function<Future<ResourceUsage>()> const &,
-        std::function<Try<::os::Load>()> const &,
+        std::function<Try<Load>()> const &,
         std::function<Try<os::MemInfo>()> const &,
         Resources const &,
-        Option<double> const &, Option<double> const &, Option<double> const &,
-        Option<Bytes> const &
+        Load const &,
+        Bytes const &
     );
     Future<Resources> oversubscribable();
 private:
     Future<Resources> calcUnusedResources(ResourceUsage const & usage);  // process::defer can't handle const methods
 
     std::function<Future<ResourceUsage>()> const usage;
-    std::function<Try<::os::Load>()> const load;
+    std::function<Try<Load>()> const load;
     std::function<Try<os::MemInfo>()> const memory;
     Resources const totalRevocable;
-    Option<double> const loadThreshold1Min;
-    Option<double> const loadThreshold5Min;
-    Option<double> const loadThreshold15Min;
-    Option<Bytes> const memThreshold;
+    Load const loadThreshold;
+    Bytes const memThreshold;
 };
 
 
 ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     std::function<Future<ResourceUsage>()> const & usage,
-    std::function<Try<::os::Load>()> const & load,
+    std::function<Try<Load>()> const & load,
     std::function<Try<os::MemInfo>()> const & memory,
     Resources const & totalRevocable,
-    Option<double> const & loadThreshold1Min,
-    Option<double> const & loadThreshold5Min,
-    Option<double> const & loadThreshold15Min,
-    Option<Bytes> const & memThreshold
+    Load const & loadThreshold,
+    Bytes const & memThreshold
 ) : ProcessBase(process::ID::generate("threshold-resource-estimator")),
     usage{usage},
     load{load},
     memory{memory},
     totalRevocable{totalRevocable},
-    loadThreshold1Min{loadThreshold1Min},
-    loadThreshold5Min{loadThreshold5Min},
-    loadThreshold15Min{loadThreshold15Min},
+    loadThreshold{loadThreshold},
     memThreshold{memThreshold}
 {}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold1Min, loadThreshold5Min, loadThreshold15Min);
+    bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold);
     bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
 
     if (cpu_overload or mem_overload) {
-        // This host is getting overloaded, so prevent advertising any more revocable resources.
         return Resources();
     }
 
@@ -105,20 +102,16 @@ Resources makeRevocable(Resources const & any) {
 }
 
 ThresholdResourceEstimator::ThresholdResourceEstimator(
-    std::function<Try<::os::Load>()> const & load,
+    std::function<Try<Load>()> const & load,
     std::function<Try<os::MemInfo>()> const & memory,
     Resources const & totalRevocable,
-    Option<double> const & loadThreshold1Min,
-    Option<double> const & loadThreshold5Min,
-    Option<double> const & loadThreshold15Min,
-    Option<Bytes> const & memThreshold
+    Load const & loadThreshold,
+    Bytes const & memThreshold
 ) :
     load{load},
     memory{memory},
     totalRevocable{makeRevocable(totalRevocable)},
-    loadThreshold1Min{loadThreshold1Min},
-    loadThreshold5Min{loadThreshold5Min},
-    loadThreshold15Min{loadThreshold15Min},
+    loadThreshold{loadThreshold},
     memThreshold{memThreshold}
 {};
 
@@ -132,9 +125,7 @@ Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<Resourc
         load,
         memory,
         totalRevocable,
-        loadThreshold1Min,
-        loadThreshold5Min,
-        loadThreshold15Min,
+        loadThreshold,
         memThreshold
     ));
     spawn(process.get());
@@ -177,10 +168,11 @@ double parse_double_parameter(std::string const & value, std::string const & par
 
 static mesos::slave::ResourceEstimator* create(mesos::Parameters const & parameters) {
     Option<Resources> resources;
-    Option<double> loadThreshold1Min;
-    Option<double> loadThreshold5Min;
-    Option<double> loadThreshold15Min;
-    Option<Bytes> memThreshold;
+    Load loadThreshold = {
+        std::numeric_limits<double>::max(),
+        std::numeric_limits<double>::max(),
+        std::numeric_limits<double>::max()};
+    Bytes memThreshold = std::numeric_limits<uint64_t>::max();
 
     try {
         for (auto const & parameter: parameters.parameter()) {
@@ -195,11 +187,11 @@ static mesos::slave::ResourceEstimator* create(mesos::Parameters const & paramet
 
             // Parse any thresholds
             if (parameter.key() == "load_threshold_1min") {
-                loadThreshold1Min = parse_double_parameter(parameter.value(), "1 min load threshold");
+                loadThreshold.one = parse_double_parameter(parameter.value(), "1 min load threshold");
             } else if (parameter.key() == "load_threshold_5min") {
-                loadThreshold5Min = parse_double_parameter(parameter.value(), "5 min load threshold");
+                loadThreshold.five = parse_double_parameter(parameter.value(), "5 min load threshold");
             } else if (parameter.key() == "load_threshold_15min") {
-                loadThreshold15Min = parse_double_parameter(parameter.value(), "15 min load threshold");
+                loadThreshold.fifteen = parse_double_parameter(parameter.value(), "15 min load threshold");
             } else if (parameter.key() == "mem_threshold") {
                 auto thresholdParam = Bytes::parse(parameter.value() + "MB");
                 if (thresholdParam.isError()) {
@@ -222,9 +214,7 @@ static mesos::slave::ResourceEstimator* create(mesos::Parameters const & paramet
         os::loadavg,
         com::blue_yonder::os::meminfo,
         resources.get(),
-        loadThreshold1Min,
-        loadThreshold5Min,
-        loadThreshold15Min,
+        loadThreshold,
         memThreshold
     );
 }

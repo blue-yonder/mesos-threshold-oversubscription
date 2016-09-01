@@ -1,10 +1,7 @@
 #pragma once
 
 #include <stout/bytes.hpp>
-
-namespace os {
-    struct Load;
-}
+#include <stout/os.hpp>
 
 namespace com { namespace blue_yonder {
 
@@ -14,12 +11,9 @@ namespace os {
 
 namespace threshold {
 
-bool memExceedsThreshold(std::function<Try<os::MemInfo>()> const &, Option<Bytes> const &);
+bool memExceedsThreshold(std::function<Try<os::MemInfo>()> const &, Bytes const &);
 
-bool loadExceedsThresholds(
-    std::function<Try<::os::Load>()> const &,
-    Option<double> const &,
-    Option<double> const &,
-    Option<double> const &);
+bool loadExceedsThresholds(std::function<Try<::os::Load>()> const &, ::os::Load const &);
+
 
 } } }

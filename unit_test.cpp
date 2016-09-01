@@ -185,10 +185,8 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
 
     ThresholdResourceEstimatorTests(
         std::string const & resources,
-        Option<double> const & loadThreshold1Min,
-        Option<double> const & loadThreshold5Min,
-        Option<double> const & loadThreshold15Min,
-        Option<Bytes> const & memThreshold
+        os::Load const & loadThreshold,
+        Bytes const & memThreshold
     ) :
         usage{},
         load{},
@@ -197,9 +195,7 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
             load,
             memory,
             Resources::parse(resources).get(),
-            loadThreshold1Min,
-            loadThreshold5Min,
-            loadThreshold15Min,
+            loadThreshold,
             memThreshold}
     {
         estimator.initialize(usage);
@@ -209,7 +205,7 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
 
 struct NoResourcesTests : public ThresholdResourceEstimatorTests {
     NoResourcesTests() : ThresholdResourceEstimatorTests {
-        "", None(), None(), None(), None()
+        "", os::Load{4, 3, 2}, Bytes::parse("384MB").get()
     } {
     }
 };
@@ -220,51 +216,23 @@ TEST_F(NoResourcesTests, noop) {
 }
 
 
-struct NoThresholdTests : public ThresholdResourceEstimatorTests {
-    NoThresholdTests() : ThresholdResourceEstimatorTests {
-        "cpus(*):2;mem(*):512", None(), None(), None(), None()
+
+struct EstimatorTests : public ThresholdResourceEstimatorTests {
+    EstimatorTests() : ThresholdResourceEstimatorTests {
+        "cpus(*):2;mem(*):512", os::Load{4, 3, 2}, Bytes::parse("384MB").get()
     } {
-    }
-};
-
-TEST_F(NoThresholdTests, no_usage) {
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_FALSE(available_resources.empty());
-    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
-}
-
-TEST_F(NoThresholdTests, revocable_usage_reduces_offers) {
-    usage.set("cpus(*):1.5;mem(*):128", "");
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_EQ(0.5, available_resources.revocable().cpus().get());
-    EXPECT_EQ(384, available_resources.revocable().mem().get().megabytes());
-}
-
-TEST_F(NoThresholdTests, non_revocable_usage_is_ignored) {
-    usage.set("", "cpus(*):1.5;mem(*):128");
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
-}
-
-
-struct LoadThresholdTests : public ThresholdResourceEstimatorTests {
-    LoadThresholdTests() : ThresholdResourceEstimatorTests {
-        "cpus(*):2;mem(*):512", 4, 3, 2, None()
-    } {
+        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128");
         load.set(3.9, 2.9, 1.9);
+        memory.set("512MB", "64MB", "256MB");
     }
 };
 
-TEST_F(LoadThresholdTests, not_exceeded) {
+TEST_F(EstimatorTests, load_not_exceeded) {
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
-    EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-    EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
 }
 
-TEST_F(LoadThresholdTests, load1_exceeded) {
+TEST_F(EstimatorTests, load1_exceeded) {
     load.set(4.0, 2.9, 1.9);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -273,7 +241,7 @@ TEST_F(LoadThresholdTests, load1_exceeded) {
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(LoadThresholdTests, load5_exceeded) {
+TEST_F(EstimatorTests, load5_exceeded) {
     load.set(3.9, 3.0, 1.9);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -282,7 +250,7 @@ TEST_F(LoadThresholdTests, load5_exceeded) {
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(LoadThresholdTests, load15_exceeded) {
+TEST_F(EstimatorTests, load15_exceeded) {
     load.set(3.9, 2.9, 2.0);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -291,56 +259,33 @@ TEST_F(LoadThresholdTests, load15_exceeded) {
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(LoadThresholdTests, load_not_available) {
+TEST_F(EstimatorTests, load_not_available) {
     load.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(NoThresholdTests, load_not_available) {
-    load.set_error();
+TEST_F(EstimatorTests, mem_not_exceeded) {
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
 }
 
-
-struct MemThresholdTests : public ThresholdResourceEstimatorTests {
-    MemThresholdTests() : ThresholdResourceEstimatorTests {
-        "cpus(*):2;mem(*):512", None(), None(), None(), Bytes::parse("384MB").get()
-    } {
-        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128");
-        load.set(3.9, 2.9, 1.9);
-        memory.set("512MB", "64MB", "256MB");
-    }
-};
-
-TEST_F(MemThresholdTests, not_exceeded) {
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_FALSE(available_resources.empty());
-}
-
-TEST_F(MemThresholdTests, reached) {
+TEST_F(EstimatorTests, mem_reached) {
     memory.set("512MB", "64MB", "64MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(MemThresholdTests, exceeded) {
+TEST_F(EstimatorTests, mem_exceeded) {
     memory.set("512MB", "0MB", "0MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(MemThresholdTests, memory_statistics_not_available) {
+TEST_F(EstimatorTests, memory_statistics_not_available) {
     memory.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
-}
-
-TEST_F(NoThresholdTests, memory_statistics_not_available) {
-    memory.set_error();
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_FALSE(available_resources.empty());
 }
 
 }
