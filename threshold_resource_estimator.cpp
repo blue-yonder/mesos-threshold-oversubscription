@@ -71,6 +71,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
     if (loadExceedsThresholds() or memExceedsThreshold()) {
+        // This host is getting overloaded, so prevent advertising any more revocable resources.
         return Resources();
     }
 
