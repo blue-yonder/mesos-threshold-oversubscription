@@ -8,6 +8,7 @@
 #include <process/process.hpp>
 
 #include "os.hpp"
+#include "threshold.hpp"
 
 using process::dispatch;
 using process::Failure;
@@ -35,8 +36,6 @@ public:
     Future<Resources> oversubscribable();
 private:
     Future<Resources> calcUnusedResources(ResourceUsage const & usage);  // process::defer can't handle const methods
-    bool loadExceedsThresholds() const;
-    bool memExceedsThreshold() const;
 
     std::function<Future<ResourceUsage>()> const usage;
     std::function<Try<::os::Load>()> const load;
@@ -71,7 +70,10 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    if (loadExceedsThresholds() or memExceedsThreshold()) {
+    bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold1Min, loadThreshold5Min, loadThreshold15Min);
+    bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
+
+    if (cpu_overload or mem_overload) {
         // This host is getting overloaded, so prevent advertising any more revocable resources.
         return Resources();
     }
@@ -88,57 +90,6 @@ Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(Resourc
     return totalRevocable - allocatedRevocable;
 }
 
-bool ThresholdResourceEstimatorProcess::loadExceedsThresholds() const {
-    if (loadThreshold1Min.isSome() or loadThreshold5Min.isSome() or loadThreshold15Min.isSome()) {
-        Try<::os::Load> const loadInfo = load();
-
-        if (loadInfo.isError()) {
-            LOG(ERROR) << "Failed to fetch system loadInfo: " + loadInfo.error();
-            LOG(INFO)  << "Assuming load thresholds to be exceeded.";
-            return true;
-        }
-
-        if (loadThreshold1Min.isSome() and loadInfo.get().one >= loadThreshold1Min.get()) {
-            LOG(INFO) << "System 1 minute load average " << loadInfo.get().one
-                      << " reached threshold " << loadThreshold1Min.get() << ".";
-            return true;
-        }
-
-        if (loadThreshold5Min.isSome() and loadInfo.get().five >= loadThreshold5Min.get()) {
-            LOG(INFO) << "System 5 minutes load average " << loadInfo.get().five
-                      << " reached threshold " << loadThreshold5Min.get() << ".";
-            return true;
-        }
-
-        if (loadThreshold15Min.isSome() and loadInfo.get().fifteen >= loadThreshold15Min.get()) {
-            LOG(INFO) << "System 15 minutes load average " << loadInfo.get().fifteen
-                      << " reached threshold " << loadThreshold15Min.get() << ".";
-            return true;
-        }
-    }
-    return false;
-}
-
-
-bool ThresholdResourceEstimatorProcess::memExceedsThreshold() const {
-    if (memThreshold.isSome()) {
-        auto const memoryInfo = memory();
-
-        if (memoryInfo.isError()) {
-            LOG(ERROR) << "Failed to fetch memory information: " << memoryInfo.error();
-            LOG(INFO)  << "Assuming memory threshold to be exceeded";
-            return true;
-        }
-
-        auto usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
-        if (usedMemory >= memThreshold.get()) {
-            LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
-                      << "reached threshold " << memThreshold.get().megabytes() << " MB.";
-            return true;
-        }
-    }
-    return false;
-}
 
 namespace {
 

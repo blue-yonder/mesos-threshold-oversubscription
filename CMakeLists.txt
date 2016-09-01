@@ -45,7 +45,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
 # Define the estimator library
 #
 
-add_library("${CMAKE_PROJECT_NAME}" SHARED threshold_resource_estimator.cpp os.cpp)
+add_library("${CMAKE_PROJECT_NAME}" SHARED threshold_resource_estimator.cpp os.cpp threshold.cpp)
 target_link_libraries("${CMAKE_PROJECT_NAME}" ${MESOS_LIBRARIES})
 set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES VERSION "${PROJECT_VERSION}")
 install(
