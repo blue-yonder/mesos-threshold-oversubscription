@@ -156,7 +156,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     ASSERT_NE(nullptr, estimator.get());
 }
 
-TEST_F(ThresholdResourceEstimatorTest, test_initialization) {
+TEST_F(ThresholdResourceEstimatorTest, test_no_thresholds) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
         "cpus(*):2;mem(*):512", None(), None(), None(), None()  // no thresholds set
     ))};
@@ -178,38 +178,12 @@ TEST_F(ThresholdResourceEstimatorTest, test_below_thresholds) {
 
 TEST_F(ThresholdResourceEstimatorTest, test_above_load_threshold_1min) {
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", "0.0", None(), None(), None()  // absurdly low load limit that will always be hit
+        "cpus(*):2;mem(*):512", "0.0", "0.0", "0.0", "0"  // absurdly low load limit that will always be hit
     ))};
     estimator->initialize(noUsage);
     auto const available_resources = estimator->oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(ThresholdResourceEstimatorTest, test_above_load_threshold_5min) {
-    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), "0.0", None(), None()  // absurdly low load limit that will always be hit
-    ))};
-    estimator->initialize(noUsage);
-    auto const available_resources = estimator->oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
-
-TEST_F(ThresholdResourceEstimatorTest, test_above_load_threshold_15min) {
-    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), None(), "0.0", None()  // absurdly low load limit that will always be hit
-    ))};
-    estimator->initialize(noUsage);
-    auto const available_resources = estimator->oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
-
-TEST_F(ThresholdResourceEstimatorTest, test_above_mem_threshold) {
-    Owned<ResourceEstimator> estimator{createEstimator(make_parameters(
-        "cpus(*):2;mem(*):512", None(), None(), None(), "0"  // absurdly low memore limit that will always be hit
-    ))};
-    estimator->initialize(noUsage);
-    auto const available_resources = estimator->oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
 
 }
