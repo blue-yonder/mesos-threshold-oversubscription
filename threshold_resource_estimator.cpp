@@ -4,6 +4,7 @@
 
 #include <process/defer.hpp>
 #include <process/dispatch.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 #include "os.hpp"
@@ -57,7 +58,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     Option<double> const & loadThreshold5Min,
     Option<double> const & loadThreshold15Min,
     Option<Bytes> const & memThreshold
-) :
+) : ProcessBase(process::ID::generate("threshold-resource-estimator")),
     usage{usage},
     load{load},
     memory{memory},
