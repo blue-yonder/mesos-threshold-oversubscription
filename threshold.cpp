@@ -2,9 +2,10 @@
 
 #include <stout/os.hpp>
 
+#include <glog/logging.h>
+
 #include "os.hpp"
 
-#include <glog/logging.h>
 
 
 namespace com { namespace blue_yonder { namespace threshold {
