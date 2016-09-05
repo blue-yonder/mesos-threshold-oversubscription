@@ -326,7 +326,30 @@ struct ControllerTests : public ThresholdQoSControllerTests {
 };
 
 TEST_F(ControllerTests, load_not_exceeded) {
-    auto const corrections = controller.corrections().get();
+    auto corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.empty());
+}
+
+TEST_F(ControllerTests, load_exceeded) {
+    load.set(10.0, 2.9, 1.9);
+    auto corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+
+    load.set(3.9, 10.0, 1.9);
+    corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+
+    load.set(3.9, 2.9, 10.0);
+    corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+}
+
+TEST_F(ControllerTests, thresholds_but_no_revocable_tasks) {
+    load.set(10.0, 2.9, 1.9);
+    usage.set("", "cpus(*):1.5;mem(*):128");
+    memory.set("512MB", "32MB", "32MB");
+
+    auto corrections = controller.corrections().get();
     EXPECT_TRUE(corrections.empty());
 }
 

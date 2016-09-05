@@ -80,12 +80,28 @@ process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections
     bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold);
     bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
 
-    if (mem_overload) {
-        return list<QoSCorrection>();
-    if (cpu_overload)
-        return list<QoSCorrection>();
+    list<QoSCorrection> corrections;
+
+    if (mem_overload || cpu_overload) {
+
+        foreach (const ResourceUsage::Executor& executor, usage.executors()) {
+            if (!Resources(executor.allocated()).revocable().empty()) {
+                QoSCorrection correction;
+
+                correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
+                correction.mutable_kill()->mutable_framework_id()->CopyFrom(
+                    executor.executor_info().framework_id());
+                correction.mutable_kill()->mutable_executor_id()->CopyFrom(
+                    executor.executor_info().executor_id());
+
+                corrections.push_back(correction);
+
+                break; // Kill one revocable executors.
+
+            }
+        }
     }
-    return list<QoSCorrection>();
+    return corrections;
 }
 
 
