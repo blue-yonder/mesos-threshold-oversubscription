@@ -1,4 +1,6 @@
 #include "threshold_resource_estimator.hpp"
+#include "threshold_qos_controller.hpp"
+
 
 #include <stout/os.hpp>
 
@@ -13,6 +15,7 @@ using mesos::Resources;
 using mesos::ResourceUsage;
 
 using com::blue_yonder::ThresholdResourceEstimator;
+using com::blue_yonder::ThresholdQoSController;
 using com::blue_yonder::os::MemInfo;
 
 namespace {
@@ -203,6 +206,29 @@ struct ThresholdResourceEstimatorTests : public ::testing::Test {
 };
 
 
+struct ThresholdQoSControllerTests : public ::testing::Test {
+    ResourceUsageMock usage;
+    LoadMock load;
+    MemInfoMock memory;
+    ThresholdQoSController controller;
+
+    ThresholdQoSControllerTests(
+        os::Load const & loadThreshold,
+        Bytes const & memThreshold
+    ) :
+        usage{},
+        load{},
+        memory{},
+        controller{
+            load,
+            memory,
+            loadThreshold,
+            memThreshold}
+    {
+        controller.initialize(usage);
+    }
+};
+
 struct NoResourcesTests : public ThresholdResourceEstimatorTests {
     NoResourcesTests() : ThresholdResourceEstimatorTests {
         "", os::Load{4, 3, 2}, Bytes::parse("384MB").get()
@@ -286,6 +312,22 @@ TEST_F(EstimatorTests, memory_statistics_not_available) {
     memory.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+}
+
+
+struct ControllerTests : public ThresholdQoSControllerTests {
+    ControllerTests() : ThresholdQoSControllerTests {
+        os::Load{4, 3, 2}, Bytes::parse("384MB").get()
+    } {
+        usage.set("cpus(*):1.5;mem(*):128", "cpus(*):1.5;mem(*):128");
+        load.set(3.9, 2.9, 1.9);
+        memory.set("512MB", "64MB", "256MB");
+    }
+};
+
+TEST_F(ControllerTests, load_not_exceeded) {
+    auto const corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.empty());
 }
 
 }
