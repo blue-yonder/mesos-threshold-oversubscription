@@ -344,7 +344,13 @@ TEST_F(ControllerTests, load_exceeded) {
     EXPECT_TRUE(corrections.size() == 1);
 }
 
-TEST_F(ControllerTests, thresholds_but_no_revocable_tasks) {
+TEST_F(ControllerTests, mem_exceeded) {
+    memory.set("512MB", "0MB", "0MB");
+    auto corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+}
+
+TEST_F(ControllerTests, thresholds_exceed_but_no_revocable_tasks) {
     load.set(10.0, 2.9, 1.9);
     usage.set("", "cpus(*):1.5;mem(*):128");
     memory.set("512MB", "32MB", "32MB");
