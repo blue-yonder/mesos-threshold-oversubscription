@@ -97,3 +97,8 @@ add_executable(os_test os_test.cpp)
 add_dependencies(os_test GTest)
 target_link_libraries(os_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
 add_test("OSHelperTests" os_test)
+
+add_executable(testutils_test testutils_test.cpp)
+add_dependencies(testutils_test GTest)
+target_link_libraries(testutils_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
+add_test("TestUtilsTests" testutils_test)
