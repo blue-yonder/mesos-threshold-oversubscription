@@ -258,28 +258,15 @@ TEST_F(EstimatorTests, load_not_exceeded) {
     EXPECT_FALSE(available_resources.empty());
 }
 
-TEST_F(EstimatorTests, load1_exceeded) {
-    load.set(4.0, 2.9, 1.9);
-    auto available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
+TEST_F(EstimatorTests, load_exceeded) {
     load.set(10.0, 2.9, 1.9);
-    available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
-
-TEST_F(EstimatorTests, load5_exceeded) {
-    load.set(3.9, 3.0, 1.9);
     auto available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
+
     load.set(3.9, 10.0, 1.9);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
-}
 
-TEST_F(EstimatorTests, load15_exceeded) {
-    load.set(3.9, 2.9, 2.0);
-    auto available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
     load.set(3.9, 2.9, 10.0);
     available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -296,19 +283,13 @@ TEST_F(EstimatorTests, mem_not_exceeded) {
     EXPECT_FALSE(available_resources.empty());
 }
 
-TEST_F(EstimatorTests, mem_reached) {
-    memory.set("512MB", "64MB", "64MB");
-    auto const available_resources = estimator.oversubscribable().get();
-    EXPECT_TRUE(available_resources.empty());
-}
-
 TEST_F(EstimatorTests, mem_exceeded) {
     memory.set("512MB", "0MB", "0MB");
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
 }
 
-TEST_F(EstimatorTests, memory_statistics_not_available) {
+TEST_F(EstimatorTests, mem_not_available) {
     memory.set_error();
     auto const available_resources = estimator.oversubscribable().get();
     EXPECT_TRUE(available_resources.empty());
@@ -326,7 +307,7 @@ struct ControllerTests : public ThresholdQoSControllerTests {
 };
 
 TEST_F(ControllerTests, load_not_exceeded) {
-    auto corrections = controller.corrections().get();
+    auto const corrections = controller.corrections().get();
     EXPECT_TRUE(corrections.empty());
 }
 
@@ -344,9 +325,21 @@ TEST_F(ControllerTests, load_exceeded) {
     EXPECT_TRUE(corrections.size() == 1);
 }
 
+TEST_F(ControllerTests, load_not_available) {
+    load.set_error();
+    auto const corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+}
+
 TEST_F(ControllerTests, mem_exceeded) {
     memory.set("512MB", "0MB", "0MB");
-    auto corrections = controller.corrections().get();
+    auto const corrections = controller.corrections().get();
+    EXPECT_TRUE(corrections.size() == 1);
+}
+
+TEST_F(ControllerTests, mem_not_available) {
+    memory.set_error();
+    auto const corrections = controller.corrections().get();
     EXPECT_TRUE(corrections.size() == 1);
 }
 
