@@ -108,6 +108,7 @@ process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections
 ThresholdQoSController::ThresholdQoSController(
     std::function<Try<Load>()> const & load,
     std::function<Try<os::MemInfo>()> const & memory,
+    mesos::Resources const & totalRevocable,
     Load const & loadThreshold,
     Bytes const & memThreshold
 ) :

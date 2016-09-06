@@ -22,6 +22,7 @@ public:
     ThresholdQoSController(
         std::function<Try<::os::Load>()> const & load,
         std::function<Try<os::MemInfo>()> const & memory,
+        mesos::Resources const & totalRevocable,
         ::os::Load const & loadThreshold,
         Bytes const & memThreshold
     );

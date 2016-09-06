@@ -3,11 +3,13 @@
 #include <stout/os.hpp>
 
 #include "threshold_resource_estimator.hpp"
+#include "threshold_qos_controller.hpp"
+
+
 #include "os.hpp"
 #include "threshold.hpp"
 
 using mesos::Resources;
-using com::blue_yonder::ThresholdResourceEstimator;
 using ::os::Load;
 
 namespace {
@@ -28,8 +30,9 @@ double parse_double_parameter(std::string const & value, std::string const & par
     return thresholdParam.get();
 }
 
-static mesos::slave::ResourceEstimator* create(mesos::Parameters const & parameters) {
-    Option<Resources> resources;
+template <typename Interface, typename ThresholdActor>
+static Interface* create(mesos::Parameters const & parameters) {
+    Resources resources;
     Load loadThreshold = {
         std::numeric_limits<double>::max(),
         std::numeric_limits<double>::max(),
@@ -67,18 +70,21 @@ static mesos::slave::ResourceEstimator* create(mesos::Parameters const & paramet
         return nullptr;
     }
 
-    if (resources.isNone()) {
-        LOG(ERROR) << "No resources specified for ThresholdResourceEstimator";
-        return nullptr;
-    }
-
-    return new ThresholdResourceEstimator(
+    return new ThresholdActor(
         os::loadavg,
         com::blue_yonder::os::meminfo,
-        resources.get(),
+        resources,
         loadThreshold,
         memThreshold
     );
+}
+
+static mesos::slave::ResourceEstimator* create_estimator(mesos::Parameters const & parameters) {
+    return create<mesos::slave::ResourceEstimator, com::blue_yonder::ThresholdResourceEstimator>(parameters);
+}
+
+static mesos::slave::QoSController* create_controller(mesos::Parameters const & parameters) {
+    return create<mesos::slave::QoSController, com::blue_yonder::ThresholdQoSController>(parameters);
 }
 
 static bool compatible() {
@@ -94,5 +100,16 @@ mesos::modules::Module<mesos::slave::ResourceEstimator> com_blue_yonder_Threshol
     "matthias.bach@blue-yonder.com",
     "Threshold Resource Estimator Module.",
     compatible,
-    create
+    create_estimator
+);
+
+
+mesos::modules::Module<mesos::slave::QoSController> com_blue_yonder_ThresholdQoSController(
+    MESOS_MODULE_API_VERSION,
+    MESOS_VERSION,
+    "Matthias Bach",
+    "matthias.bach@blue-yonder.com",
+    "Threshold QoS Controller Module.",
+    compatible,
+    create_controller
 );

@@ -9,6 +9,8 @@
 #include <mesos/version.hpp>
 #include <mesos/module.hpp>
 #include <mesos/module/resource_estimator.hpp>
+#include <mesos/module/qos_controller.hpp>
+
 
 #include <gtest/gtest.h>
 
@@ -21,11 +23,14 @@ using mesos::ResourceUsage;
 using mesos::modules::ModuleBase;
 using mesos::modules::Module;
 using mesos::slave::ResourceEstimator;
+using mesos::slave::QoSController;
+
 
 namespace {
 
-string const estimatorLibraryName{"threshold_resource_estimator"};
+string const libraryName{"threshold_resource_estimator"};
 string const estimatorModuleName{"com_blue_yonder_ThresholdResourceEstimator"};
+string const controllerModuleName{"com_blue_yonder_ThresholdQoSController"};
 
 
 class ModuleTest : public ::testing::Test {
@@ -82,7 +87,7 @@ public:
 };
 
 Try<ModuleBase*>  ThresholdResourceEstimatorTest::loadModule() {
-    return ModuleTest::loadModule(estimatorLibraryName, estimatorModuleName);
+    return ModuleTest::loadModule(libraryName, estimatorModuleName);
 }
 
 ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parameters const & params) {
@@ -92,7 +97,26 @@ ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parame
     return estimatorModule->create(params);
 }
 
-void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
+class ThresholdQoSControllerTest : public ModuleTest {
+public:
+    ThresholdQoSControllerTest() : ModuleTest() { }
+
+    Try<ModuleBase*> loadModule();
+    QoSController* createController(mesos::Parameters const & params);
+};
+
+Try<ModuleBase*>  ThresholdQoSControllerTest::loadModule() {
+    return ModuleTest::loadModule(libraryName, controllerModuleName);
+}
+
+QoSController* ThresholdQoSControllerTest::createController(mesos::Parameters const & params) {
+    auto load_result = this->loadModule();
+    ModuleBase* moduleBase = load_result.get();
+    auto estimatorModule = reinterpret_cast<Module<QoSController>*>(moduleBase);
+    return estimatorModule->create(params);
+}
+
+void verifyModule(const string& moduleName, const ModuleBase* moduleBase, const string& kind)
 {
     ASSERT_TRUE(moduleBase != nullptr);
     ASSERT_TRUE(moduleBase->mesosVersion != NULL) << "Module " << moduleName << " is missing field 'mesosVersion'";
@@ -108,7 +132,7 @@ void verifyModule(const string& moduleName, const ModuleBase* moduleBase)
         << "Module API version mismatch. Mesos has: " MESOS_MODULE_API_VERSION ", "
         << "library requires: " + stringify(moduleBase->moduleApiVersion);
 
-    EXPECT_EQ("ResourceEstimator", stringify(moduleBase->kind));
+    EXPECT_EQ(kind, stringify(moduleBase->kind));
 
     Try<Version> mesosVersion = Version::parse(MESOS_VERSION);
 
@@ -168,7 +192,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
     auto load_result = loadModule();
     ASSERT_FALSE(load_result.isError()) << load_result.error();
     ModuleBase* moduleBase = load_result.get();
-    verifyModule(estimatorModuleName, moduleBase);
+    verifyModule(estimatorModuleName, moduleBase, "ResourceEstimator");
     Owned<ResourceEstimator> estimator{createEstimator(make_parameters("", None(), None(), None(), None()))};
     ASSERT_NE(nullptr, estimator.get());
 }
@@ -202,5 +226,13 @@ TEST_F(ThresholdResourceEstimatorTest, test_above_thresholds) {
     EXPECT_TRUE(available_resources.empty());
 }
 
+TEST_F(ThresholdQoSControllerTest, test_load_library) {
+    auto load_result = loadModule();
+    ASSERT_FALSE(load_result.isError()) << load_result.error();
+    ModuleBase* moduleBase = load_result.get();
+    verifyModule(controllerModuleName, moduleBase, "QoSController");
+    Owned<QoSController> controller{createController(make_parameters("", None(), None(), None(), None()))};
+    ASSERT_NE(nullptr, controller.get());
+}
 
 }
