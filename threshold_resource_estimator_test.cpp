@@ -60,7 +60,15 @@ struct EstimatorTests : public ThresholdResourceEstimatorTests {
 };
 
 TEST_F(EstimatorTests, load_not_exceeded) {
-    auto const available_resources = estimator.oversubscribable().get();
+    auto available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+
+    load.set(1.0, 10.0, 1.9);
+    available_resources = estimator.oversubscribable().get();
+    EXPECT_FALSE(available_resources.empty());
+
+    load.set(1.0, 1.0, 10.0);
+    available_resources = estimator.oversubscribable().get();
     EXPECT_FALSE(available_resources.empty());
 }
 
