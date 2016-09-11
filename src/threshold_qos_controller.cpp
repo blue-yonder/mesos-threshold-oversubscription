@@ -98,18 +98,18 @@ bool mostGreedyRevocable( ResourceUsage::Executor const & a, ResourceUsage::Exec
 Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(
     ResourceUsage const & usage)
 {
+  // We assume all tasks are run in cgroups so that a single task cannot overload
+  // the entire host. The host memory may only be exceeded due to the existence of revocable
+  // tasks.
+  //
+  // By killing a single revocable task per correction interval, we prevent runs of the
+  // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
+  // not differentiate between revocable and non-revocalbe tasks, therefore leading to
+  // potential SLA violations at our end. (This could be changed if Mesos adopts the
+  // oom.victim cgroup)
+  //
+  // If there are revocable tasks, we kill the one that has the largest memory footprint.
   if (threshold::memExceedsThreshold(memory, memThreshold)) {
-    // We assume all tasks are run in cgroups so that a single task cannot overload
-    // the entire host. The host memory may only be exceeded due to the existence of revocable
-    // tasks.
-    //
-    // By killing a single revocable task per correction interval, we prevent runs of the
-    // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
-    // not differentiate between revocable and non-revocalbe tasks, therefore leading to
-    // potential SLA violations at our end. (This could be changed if Mesos adopts the
-    // oom.victim cgroup)
-    //
-    // If there are revocable tasks, we kill the one that has the largest memory footprint.
     auto const most_greedy = std::max_element(
       usage.executors().begin(),
       usage.executors().end(),
@@ -122,18 +122,18 @@ Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(
     }
   }
 
+  // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
+  // that a  single cgroup cannot overload the entire host and starve other tasks
+  // (even though there is a potetential risk of slightly increased tail latency).
+  //
+  // This basic protection enables us to react to CPU overload situations in a rather
+  // calm and defered fashion, i.e. kill a random task per correction interval if any
+  // load threshold is exceeded.
+  //
+  // Killing a random tasks rather than the one that is using the most cpu time is a
+  // simplificiation. Otherwise we would have to make this QoSController stateful in order
+  // to measure which revocable task is using the most CPU time.
   if (threshold::loadExceedsThreshold(load, loadThreshold)) {
-    // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
-    // that a  single cgroup cannot overload the entire host and starve other tasks
-    // (even though there is a potetential risk of slightly increased tail latency).
-    //
-    // This basic protection enables us to react to CPU overload situations in a rather
-    // calm and defered fashion, i.e. kill a random task per correction interval if any
-    // load threshold is exceeded.
-    //
-    // Killing a random tasks rather than the one that is using the most cpu time is a
-    // simplificiation. Otherwise we would have to make this QoSController stateful in order
-    // to measure which revocable task is using the most CPU time.
     foreach (ResourceUsage::Executor const & executor, usage.executors()) {
       if (!Resources(executor.allocated()).revocable().empty()) {
         return list<QoSCorrection>{killCorrection(executor)};

@@ -64,7 +64,7 @@ bool loadExceedsThreshold(
   }
 
   if (currentLoad.get().five >= threshold.five &&
-    currentLoad.get().one >= threshold.five) {
+      currentLoad.get().one >= threshold.five) {
 
     LOG(INFO) << "System 5 minutes load average " << currentLoad.get().five
               << " reached threshold " << threshold.five;
@@ -72,8 +72,8 @@ bool loadExceedsThreshold(
   }
 
   if (currentLoad.get().fifteen >= threshold.fifteen &&
-    currentLoad.get().five >= threshold.fifteen &&
-    currentLoad.get().one >= threshold.fifteen) {
+      currentLoad.get().five >= threshold.fifteen &&
+      currentLoad.get().one >= threshold.fifteen) {
 
     LOG(INFO) << "System 15 minutes load average " << currentLoad.get().fifteen
               << " reached threshold " << threshold.fifteen;

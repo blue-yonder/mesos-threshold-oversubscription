@@ -69,12 +69,11 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
   memThreshold{memThreshold}
 {}
 
-Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
-{
-  bool cpu_overload = threshold::loadExceedsThreshold(load, loadThreshold);
-  bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
+Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
+  bool cpuOverload = threshold::loadExceedsThreshold(load, loadThreshold);
+  bool memOverload = threshold::memExceedsThreshold(memory, memThreshold);
 
-  if (cpu_overload or mem_overload) {
+  if (cpuOverload or memOverload) {
     return Resources();
   }
 
@@ -132,8 +131,7 @@ Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<Resourc
     memory,
     totalRevocable,
     loadThreshold,
-    memThreshold
-  ));
+    memThreshold));
   spawn(process.get());
 
   return Nothing();
