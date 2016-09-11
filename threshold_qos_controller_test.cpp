@@ -28,6 +28,7 @@ struct ThresholdQoSControllerTests : public ::testing::Test {
         controller{
             load,
             memory,
+            Resources::parse("").get(),
             loadThreshold,
             memThreshold}
     {

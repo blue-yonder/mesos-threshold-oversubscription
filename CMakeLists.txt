@@ -103,7 +103,7 @@ add_dependencies(threshold_resource_estimator_test GTest)
 target_link_libraries(threshold_resource_estimator_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
 add_test("EstimatorTests" threshold_resource_estimator_test)
 
-add_executable(threshold_qos_controller threshold_qos_controller.cpp)
+add_executable(threshold_qos_controller threshold_qos_controller_test.cpp)
 add_dependencies(threshold_qos_controller GTest)
 target_link_libraries(threshold_qos_controller ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
 add_test("QoSControllerTests" threshold_qos_controller)
