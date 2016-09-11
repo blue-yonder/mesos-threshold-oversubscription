@@ -37,7 +37,7 @@ Add the following configuration to your `mesos-slave` invocation:
     --resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
     --modules='{
       "libraries": {
-        "file": "/<path>/<to>/libthreshold_resource_estimator.so",
+        "file": "/<path>/<to>/libthreshold_oversubscription.so",
         "modules": {
           "name": "com_blue_yonder_ThresholdResourceEstimator",
           "parameters": [
