@@ -10,26 +10,30 @@
 
 namespace com { namespace blue_yonder { namespace threshold {
 
-
+/*
+ * Returns true if the current memory usage (not including buffers and caches) exceeds
+ * the given threshold.
+ */
 bool memExceedsThreshold(
-        std::function<Try<os::MemInfo>()> const & memory,
-        Bytes const & memThreshold)
+    std::function<Try<os::MemInfo>()> const & memory,
+    Bytes const & memThreshold)
 {
-    auto const memoryInfo = memory();
+  auto const memoryInfo = memory();
 
-    if (memoryInfo.isError()) {
-        LOG(ERROR) << "Failed to fetch memory information: " << memoryInfo.error()
-                   << ". Assuming memory threshold to be exceeded";
-        return true;
-    }
+  if (memoryInfo.isError()) {
+    LOG(ERROR) << "Failed to fetch memory information: " << memoryInfo.error()
+               << ". Assuming memory threshold to be exceeded";
+    return true;
+  }
 
-    auto usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
-    if (usedMemory >= memThreshold) {
-        LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
-                  << "reached threshold " << memThreshold.megabytes() << " MB.";
-        return true;
-    }
-    return false;
+  auto const usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
+
+  if (usedMemory >= memThreshold) {
+    LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
+              << "reached threshold " << memThreshold.megabytes() << " MB.";
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -42,40 +46,40 @@ bool memExceedsThreshold(
  * affected the longer interval. The same holds for the 5m load threshold.
  */
 bool loadExceedsThreshold(
-        std::function<Try<::os::Load>()> const & load,
-        ::os::Load const & threshold)
+    std::function<Try<::os::Load>()> const & load,
+    ::os::Load const & threshold)
 {
-    Try<::os::Load> const currentLoad = load();
+  Try<::os::Load> const currentLoad = load();
 
-    if (currentLoad.isError()) {
-        LOG(ERROR) << "Failed to fetch system load: " + currentLoad.error()
-                   << ". Assuming load thresholds to be exceeded.";
-        return true;
-    }
+  if (currentLoad.isError()) {
+    LOG(ERROR) << "Failed to fetch system load: " + currentLoad.error()
+               << ". Assuming load thresholds to be exceeded";
+    return true;
+  }
 
-    if (currentLoad.get().one >= threshold.one) {
-        LOG(INFO) << "System 1 minute load average " << currentLoad.get().one
-                  << " reached threshold " <<  threshold.one << ".";
-        return true;
-    }
+  if (currentLoad.get().one >= threshold.one) {
+    LOG(INFO) << "System 1 minute load average " << currentLoad.get().one
+              << " reached threshold " <<  threshold.one;
+    return true;
+  }
 
-    if (currentLoad.get().five >= threshold.five &&
-        currentLoad.get().one >= threshold.five) {
+  if (currentLoad.get().five >= threshold.five &&
+    currentLoad.get().one >= threshold.five) {
 
-        LOG(INFO) << "System 5 minutes load average " << currentLoad.get().five
-                  << " reached threshold " << threshold.five << ".";
-        return true;
-    }
+    LOG(INFO) << "System 5 minutes load average " << currentLoad.get().five
+              << " reached threshold " << threshold.five;
+    return true;
+  }
 
-    if (currentLoad.get().fifteen >= threshold.fifteen &&
-        currentLoad.get().five >= threshold.fifteen &&
-        currentLoad.get().one >= threshold.fifteen) {
+  if (currentLoad.get().fifteen >= threshold.fifteen &&
+    currentLoad.get().five >= threshold.fifteen &&
+    currentLoad.get().one >= threshold.fifteen) {
 
-        LOG(INFO) << "System 15 minutes load average " << currentLoad.get().fifteen
-                  << " reached threshold " << threshold.fifteen << ".";
-        return true;
-    }
-    return false;
+    LOG(INFO) << "System 15 minutes load average " << currentLoad.get().fifteen
+              << " reached threshold " << threshold.fifteen;
+    return true;
+  }
+  return false;
 }
 
 

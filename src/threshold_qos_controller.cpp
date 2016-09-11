@@ -38,160 +38,155 @@ using ::os::Load;
 class ThresholdQoSControllerProcess : public Process<ThresholdQoSControllerProcess>
 {
 public:
-    ThresholdQoSControllerProcess(
-        std::function<Future<ResourceUsage>()> const &,
-        std::function<Try<Load>()> const &,
-        std::function<Try<os::MemInfo>()> const &,
-        Load const &,
-        Bytes const &
-    );
-    process::Future<list<QoSCorrection>> corrections();
+  ThresholdQoSControllerProcess(
+    std::function<Future<ResourceUsage>()> const &,
+    std::function<Try<Load>()> const &,
+    std::function<Try<os::MemInfo>()> const &,
+    Load const &,
+    Bytes const &
+  );
+  Future<list<QoSCorrection>> corrections();
 private:
-    process::Future<list<QoSCorrection>> _corrections(ResourceUsage const & usage);  // process::defer can't handle const methods
+  Future<list<QoSCorrection>> _corrections(ResourceUsage const & usage);
 
-    std::function<Future<ResourceUsage>()> const usage;
-    std::function<Try<Load>()> const load;
-    std::function<Try<os::MemInfo>()> const memory;
-    Load const loadThreshold;
-    Bytes const memThreshold;
+  std::function<Future<ResourceUsage>()> const usage;
+  std::function<Try<Load>()> const load;
+  std::function<Try<os::MemInfo>()> const memory;
+  Load const loadThreshold;
+  Bytes const memThreshold;
 };
 
 
 ThresholdQoSControllerProcess::ThresholdQoSControllerProcess(
-    std::function<Future<ResourceUsage>()> const & usage,
-    std::function<Try<Load>()> const & load,
-    std::function<Try<os::MemInfo>()> const & memory,
-    Load const & loadThreshold,
-    Bytes const & memThreshold
+  std::function<Future<ResourceUsage>()> const & usage,
+  std::function<Try<Load>()> const & load,
+  std::function<Try<os::MemInfo>()> const & memory,
+  Load const & loadThreshold,
+  Bytes const & memThreshold
 ) : ProcessBase(process::ID::generate("threshold-qos-controller")),
-    usage{usage},
-    load{load},
-    memory{memory},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+  usage{usage},
+  load{load},
+  memory{memory},
+  loadThreshold{loadThreshold},
+  memThreshold{memThreshold}
 {}
 
-process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections()
-{
-    return usage().then(process::defer(self(), &Self::_corrections, std::placeholders::_1));
+Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections() {
+  return usage().then(process::defer(self(), &Self::_corrections, std::placeholders::_1));
 }
 
 namespace {
 
 QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
-    QoSCorrection correction;
-    correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
-    correction.mutable_kill()->mutable_framework_id()->CopyFrom(
-        executor.executor_info().framework_id());
-    correction.mutable_kill()->mutable_executor_id()->CopyFrom(
-        executor.executor_info().executor_id());
-    return correction;
+  QoSCorrection correction;
+  correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
+  correction.mutable_kill()->mutable_framework_id()->CopyFrom(
+    executor.executor_info().framework_id());
+  correction.mutable_kill()->mutable_executor_id()->CopyFrom(
+    executor.executor_info().executor_id());
+  return correction;
 }
 
 bool mostGreedyRevocable( ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
-    int const usage_a = 0 ? Resources(a.allocated()).revocable().empty()
-                          : a.statistics().mem_total_bytes();
-    int const usage_b = 0 ? Resources(b.allocated()).revocable().empty()
-                          : b.statistics().mem_total_bytes();
-    return (usage_a < usage_b);
+  int memA = 0 ? Resources(a.allocated()).revocable().empty() : a.statistics().mem_total_bytes();
+  int memB = 0 ? Resources(b.allocated()).revocable().empty() : b.statistics().mem_total_bytes();
+  return (memA < memB);
 }
 
 }
 
-process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(ResourceUsage const & usage) {
+Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(
+    ResourceUsage const & usage)
+{
+  if (threshold::memExceedsThreshold(memory, memThreshold)) {
+    // We assume all tasks are run in cgroups so that a single task cannot overload
+    // the entire host. The host memory may only be exceeded due to the existence of revocable
+    // tasks.
+    //
+    // By killing a single revocable task per correction interval, we prevent runs of the
+    // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
+    // not differentiate between revocable and non-revocalbe tasks, therefore leading to
+    // potential SLA violations at our end. (This could be changed if Mesos adopts the
+    // oom.victim cgroup)
+    //
+    // If there are revocable tasks, we kill the one that has the largest memory footprint.
+    auto const most_greedy = std::max_element(
+      usage.executors().begin(),
+      usage.executors().end(),
+      mostGreedyRevocable);
 
-    if (threshold::memExceedsThreshold(memory, memThreshold)) {
-        // We assume all tasks are run in cgroups so that a single task cannot overload
-        // the entire host. The host memory may only be exceeded due to the existence of revocable
-        // tasks.
-        //
-        // By killing a single revocable task per correction interval, we prevent runs of the
-        // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
-        // not differentiate between revocable and non-revocalbe tasks, therefore leading to
-        // potential SLA violations on our end. (This could be changed if Mesos adopts the
-        // oom.victim cgroup.)
-        //
-        // If there are revocable tasks, we kill the one that has the largest memory footprint.
-        auto const most_greedy = std::max_element(
-            usage.executors().begin(),
-            usage.executors().end(),
-            mostGreedyRevocable);
+    if (usage.executors().end() != most_greedy &&
+        !Resources(most_greedy->allocated()).revocable().empty()) {
 
-        if (usage.executors().end() != most_greedy &&
-            !Resources(most_greedy->allocated()).revocable().empty()) {
-
-            return list<QoSCorrection>{killCorrection(*most_greedy)};
-        }
-
+      return list<QoSCorrection>{killCorrection(*most_greedy)};
     }
-    if (threshold::loadExceedsThreshold(load, loadThreshold)) {
-        // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
-        // that a  single cgroup cannot overload the entire host and starve other tasks
-        // (even though there is a potetential risk of slightly increased tail latency).
-        //
-        // This basic protection enables us to react to CPU overload situations in a rather
-        // calm and defered fashion, i.e. kill a random task per correction interval if any
-        // load threshold is exceeded.
-        //
-        // Killing a random tasks rather than the one that is using the most cpu time is a
-        // simplificiation. Otherwise we would have to make this QoSController stateful in order
-        // to measure which revocable task is using the most CPU time.
-        foreach (ResourceUsage::Executor const & executor, usage.executors()) {
-            if (!Resources(executor.allocated()).revocable().empty()) {
-                return list<QoSCorrection>{killCorrection(executor)};
-            }
-        }
+  }
+
+  if (threshold::loadExceedsThreshold(load, loadThreshold)) {
+    // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
+    // that a  single cgroup cannot overload the entire host and starve other tasks
+    // (even though there is a potetential risk of slightly increased tail latency).
+    //
+    // This basic protection enables us to react to CPU overload situations in a rather
+    // calm and defered fashion, i.e. kill a random task per correction interval if any
+    // load threshold is exceeded.
+    //
+    // Killing a random tasks rather than the one that is using the most cpu time is a
+    // simplificiation. Otherwise we would have to make this QoSController stateful in order
+    // to measure which revocable task is using the most CPU time.
+    foreach (ResourceUsage::Executor const & executor, usage.executors()) {
+      if (!Resources(executor.allocated()).revocable().empty()) {
+        return list<QoSCorrection>{killCorrection(executor)};
+      }
     }
-    return list<QoSCorrection>();
+  }
+  return list<QoSCorrection>();
 }
 
 
 ThresholdQoSController::ThresholdQoSController(
-    std::function<Try<Load>()> const & load,
-    std::function<Try<os::MemInfo>()> const & memory,
-    mesos::Resources const & totalRevocable,
-    Load const & loadThreshold,
-    Bytes const & memThreshold
+  std::function<Try<Load>()> const & load,
+  std::function<Try<os::MemInfo>()> const & memory,
+  mesos::Resources const & totalRevocable,
+  Load const & loadThreshold,
+  Bytes const & memThreshold
 ) :
-    load{load},
-    memory{memory},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+  load{load},
+  memory{memory},
+  loadThreshold{loadThreshold},
+  memThreshold{memThreshold}
 {};
 
 Try<Nothing> ThresholdQoSController::initialize(std::function<Future<ResourceUsage>()> const & usage) {
-    if (process.get() != nullptr) {
-        return Error("ThresholdQoSController has already been initialized");
-    }
+  if (process.get() != nullptr) {
+    return Error("ThresholdQoSController has already been initialized");
+  }
 
-    LOG(INFO) << "Initializing ThresholdQoSController. Load thresholds: "
-              << loadThreshold.one << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
-              << "Memory threshold: " << memThreshold.megabytes() << " MB.";
+  LOG(INFO) << "Initializing ThresholdQoSController. Load thresholds: "
+            << loadThreshold.one << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
+            << "Memory threshold: " << memThreshold.megabytes() << " MB";
 
-    process.reset(new ThresholdQoSControllerProcess(
-        usage,
-        load,
-        memory,
-        loadThreshold,
-        memThreshold
-    ));
-    spawn(process.get());
+  process.reset(new ThresholdQoSControllerProcess(
+    usage,
+    load,
+    memory,
+    loadThreshold,
+    memThreshold));
+  spawn(process.get());
 
-    return Nothing();
+  return Nothing();
 }
 
 process::Future<list<QoSCorrection>> ThresholdQoSController::corrections() {
-    if (process.get() == nullptr) {
-        return Failure("ThresholdQoSController is not initialized");
-    }
-    return dispatch(process.get(), &ThresholdQoSControllerProcess::corrections);
+  if (process.get() == nullptr) {
+    return Failure("ThresholdQoSController is not initialized");
+  }
+  return dispatch(process.get(), &ThresholdQoSControllerProcess::corrections);
 }
 
-ThresholdQoSController::~ThresholdQoSController()
-{
-    if (process.get() != nullptr) {
-        terminate(process.get());
-        wait(process.get());
-    }
+ThresholdQoSController::~ThresholdQoSController() {
+  if (process.get() != nullptr) {
+    terminate(process.get());
+    wait(process.get());
+  }
 }
-

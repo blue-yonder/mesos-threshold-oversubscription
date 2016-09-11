@@ -6,7 +6,7 @@
 namespace com { namespace blue_yonder {
 
 namespace os {
-    struct MemInfo;
+  struct MemInfo;
 }
 
 namespace threshold {

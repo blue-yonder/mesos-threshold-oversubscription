@@ -32,126 +32,124 @@ using ::os::Load;
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
 public:
-    ThresholdResourceEstimatorProcess(
-        std::function<Future<ResourceUsage>()> const &,
-        std::function<Try<Load>()> const &,
-        std::function<Try<os::MemInfo>()> const &,
-        Resources const &,
-        Load const &,
-        Bytes const &
-    );
-    Future<Resources> oversubscribable();
+  ThresholdResourceEstimatorProcess(
+    std::function<Future<ResourceUsage>()> const &,
+    std::function<Try<Load>()> const &,
+    std::function<Try<os::MemInfo>()> const &,
+    Resources const &,
+    Load const &,
+    Bytes const &
+  );
+  Future<Resources> oversubscribable();
 private:
-    Future<Resources> calcUnusedResources(ResourceUsage const & usage);  // process::defer can't handle const methods
+  Future<Resources> calcUnusedResources(ResourceUsage const & usage);  // process::defer can't handle const methods
 
-    std::function<Future<ResourceUsage>()> const usage;
-    std::function<Try<Load>()> const load;
-    std::function<Try<os::MemInfo>()> const memory;
-    Resources const totalRevocable;
-    Load const loadThreshold;
-    Bytes const memThreshold;
+  std::function<Future<ResourceUsage>()> const usage;
+  std::function<Try<Load>()> const load;
+  std::function<Try<os::MemInfo>()> const memory;
+  Resources const totalRevocable;
+  Load const loadThreshold;
+  Bytes const memThreshold;
 };
 
 
 ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
-    std::function<Future<ResourceUsage>()> const & usage,
-    std::function<Try<Load>()> const & load,
-    std::function<Try<os::MemInfo>()> const & memory,
-    Resources const & totalRevocable,
-    Load const & loadThreshold,
-    Bytes const & memThreshold
+  std::function<Future<ResourceUsage>()> const & usage,
+  std::function<Try<Load>()> const & load,
+  std::function<Try<os::MemInfo>()> const & memory,
+  Resources const & totalRevocable,
+  Load const & loadThreshold,
+  Bytes const & memThreshold
 ) : ProcessBase(process::ID::generate("threshold-resource-estimator")),
-    usage{usage},
-    load{load},
-    memory{memory},
-    totalRevocable{totalRevocable},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+  usage{usage},
+  load{load},
+  memory{memory},
+  totalRevocable{totalRevocable},
+  loadThreshold{loadThreshold},
+  memThreshold{memThreshold}
 {}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    bool cpu_overload = threshold::loadExceedsThreshold(load, loadThreshold);
-    bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
+  bool cpu_overload = threshold::loadExceedsThreshold(load, loadThreshold);
+  bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
 
-    if (cpu_overload or mem_overload) {
-        return Resources();
-    }
+  if (cpu_overload or mem_overload) {
+    return Resources();
+  }
 
-    return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
+  return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
 }
 
 Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const & usage) {
-    Resources allocatedRevocable;
-    for (auto const & executor: usage.executors()) {
-        allocatedRevocable += Resources(executor.allocated()).revocable();
-    }
-
-    return totalRevocable - allocatedRevocable;
+  Resources allocatedRevocable;
+  for (auto const & executor: usage.executors()) {
+    allocatedRevocable += Resources(executor.allocated()).revocable();
+  }
+  return totalRevocable - allocatedRevocable;
 }
 
 
 namespace {
 
 Resources makeRevocable(Resources const & any) {
-    Resources revocable;
-    for (auto resource: any) {
-        resource.mutable_revocable();
-        revocable += resource;
-    }
-    return revocable;
+  Resources revocable;
+  for (auto resource: any) {
+    resource.mutable_revocable();
+    revocable += resource;
+  }
+  return revocable;
 }
 
 }
 
 ThresholdResourceEstimator::ThresholdResourceEstimator(
-    std::function<Try<Load>()> const & load,
-    std::function<Try<os::MemInfo>()> const & memory,
-    Resources const & totalRevocable,
-    Load const & loadThreshold,
-    Bytes const & memThreshold
+  std::function<Try<Load>()> const & load,
+  std::function<Try<os::MemInfo>()> const & memory,
+  Resources const & totalRevocable,
+  Load const & loadThreshold,
+  Bytes const & memThreshold
 ) :
-    load{load},
-    memory{memory},
-    totalRevocable{makeRevocable(totalRevocable)},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+  load{load},
+  memory{memory},
+  totalRevocable{makeRevocable(totalRevocable)},
+  loadThreshold{loadThreshold},
+  memThreshold{memThreshold}
 {};
 
 Try<Nothing> ThresholdResourceEstimator::initialize(std::function<Future<ResourceUsage>()> const & usage) {
-    if (process.get() != nullptr) {
-        return Error("ThresholdResourceEstimator has already been initialized");
-    }
+  if (process.get() != nullptr) {
+    return Error("ThresholdResourceEstimator has already been initialized");
+  }
 
-    LOG(INFO) << "Initializing ThresholdResourceEstimator. Load thresholds: "
-              << loadThreshold.one << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
-              << "Memory threshold: " << memThreshold.megabytes() << " MB.";
+  LOG(INFO) << "Initializing ThresholdResourceEstimator. Load thresholds: "
+            << loadThreshold.one << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
+            << "Memory threshold: " << memThreshold.megabytes() << " MB";
 
-    process.reset(new ThresholdResourceEstimatorProcess(
-        usage,
-        load,
-        memory,
-        totalRevocable,
-        loadThreshold,
-        memThreshold
-    ));
-    spawn(process.get());
+  process.reset(new ThresholdResourceEstimatorProcess(
+    usage,
+    load,
+    memory,
+    totalRevocable,
+    loadThreshold,
+    memThreshold
+  ));
+  spawn(process.get());
 
-    return Nothing();
+  return Nothing();
 }
 
 Future<Resources> ThresholdResourceEstimator::oversubscribable() {
-    if (process.get() == nullptr) {
-        return Failure("ThresholdResourceEstimator is not initialized");
-    }
-    return dispatch(process.get(), &ThresholdResourceEstimatorProcess::oversubscribable);
+  if (process.get() == nullptr) {
+    return Failure("ThresholdResourceEstimator is not initialized");
+  }
+  return dispatch(process.get(), &ThresholdResourceEstimatorProcess::oversubscribable);
 }
 
-ThresholdResourceEstimator::~ThresholdResourceEstimator()
-{
-    if (process.get() != nullptr) {
-        terminate(process.get());
-        wait(process.get());
-    }
+ThresholdResourceEstimator::~ThresholdResourceEstimator() {
+  if (process.get() != nullptr) {
+    terminate(process.get());
+    wait(process.get());
+  }
 }
 
