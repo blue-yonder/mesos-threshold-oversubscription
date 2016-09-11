@@ -42,23 +42,8 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror ${CMAKE_CXX_FLAGS}")
 
 
 #
-# Define the estimator library
-#
-
-add_library("${CMAKE_PROJECT_NAME}" SHARED module.cpp threshold_resource_estimator.cpp threshold_qos_controller.cpp os.cpp threshold.cpp)
-target_link_libraries("${CMAKE_PROJECT_NAME}" ${MESOS_LIBRARIES})
-set_target_properties("${CMAKE_PROJECT_NAME}" PROPERTIES VERSION "${PROJECT_VERSION}")
-install(
-	TARGETS "${CMAKE_PROJECT_NAME}"
-	LIBRARY DESTINATION "lib/x86_64-linux-gnu/mesos/modules/"
-)
-
-
-#
 # Bootstrap GTest
 #
-
-enable_testing()
 find_package(Threads REQUIRED)
 include(ExternalProject)
 ExternalProject_Add(
@@ -79,31 +64,8 @@ set(GTEST_LIBRARIES "${binary_dir}/libgtest.a" "${CMAKE_THREAD_LIBS_INIT}")
 set(GTEST_MAIN_LIBRARIES "${binary_dir}/libgtest_main.a")
 set(GTEST_BOTH_LIBRARIES "${GTEST_MAIN_LIBRARIES}" "${GTEST_LIBRARIES}")
 
-#
-# Define our tests
-#
+add_subdirectory (src)
 
-add_executable(module_test module_test.cpp)
-add_dependencies(module_test GTest)
-target_link_libraries(module_test ${GTEST_BOTH_LIBRARIES} ${MESOS_LIBRARIES})
-add_test("ModuleTests" module_test)
+enable_testing ()
+add_subdirectory (tests)
 
-add_executable(os_test os_test.cpp)
-add_dependencies(os_test GTest)
-target_link_libraries(os_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
-add_test("OSHelperTests" os_test)
-
-add_executable(testutils_test testutils_test.cpp)
-add_dependencies(testutils_test GTest)
-target_link_libraries(testutils_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
-add_test("TestUtilsTests" testutils_test)
-
-add_executable(threshold_resource_estimator_test threshold_resource_estimator_test.cpp)
-add_dependencies(threshold_resource_estimator_test GTest)
-target_link_libraries(threshold_resource_estimator_test ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
-add_test("EstimatorTests" threshold_resource_estimator_test)
-
-add_executable(threshold_qos_controller threshold_qos_controller_test.cpp)
-add_dependencies(threshold_qos_controller GTest)
-target_link_libraries(threshold_qos_controller ${GTEST_BOTH_LIBRARIES} "${CMAKE_PROJECT_NAME}")
-add_test("QoSControllerTests" threshold_qos_controller)

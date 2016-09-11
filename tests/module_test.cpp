@@ -60,7 +60,7 @@ Try<ModuleBase*> ModuleTest::loadModule(
         string const & moduleName)
 {
     if (this->moduleBase == nullptr) {
-        auto const path = "./" + os::libraries::expandName(libraryName);
+        auto const path = "../src/" + os::libraries::expandName(libraryName);
         Try<Nothing> result = this->dynamicLibrary->open(path);
         if (!result.isSome()) {
             return Error("Error opening library of module: '" + moduleName + "': " + result.error());
