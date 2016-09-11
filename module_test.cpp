@@ -28,7 +28,7 @@ using mesos::slave::QoSController;
 
 namespace {
 
-string const libraryName{"threshold_resource_estimator"};
+string const libraryName{"threshold_oversubscription"};
 string const estimatorModuleName{"com_blue_yonder_ThresholdResourceEstimator"};
 string const controllerModuleName{"com_blue_yonder_ThresholdQoSController"};
 

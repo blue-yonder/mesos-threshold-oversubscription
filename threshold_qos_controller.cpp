@@ -88,7 +88,7 @@ QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
     return correction;
 }
 
-bool most_greedy_revocable( ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
+bool mostGreedyRevocable( ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
     int const usage_a = 0 ? Resources(a.allocated()).revocable().empty()
                           : a.statistics().mem_total_bytes();
     int const usage_b = 0 ? Resources(b.allocated()).revocable().empty()
@@ -115,7 +115,7 @@ process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections
         auto const most_greedy = std::max_element(
             usage.executors().begin(),
             usage.executors().end(),
-            most_greedy_revocable);
+            mostGreedyRevocable);
 
         if (usage.executors().end() != most_greedy &&
             !Resources(most_greedy->allocated()).revocable().empty()) {
