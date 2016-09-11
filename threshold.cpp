@@ -32,7 +32,16 @@ bool memExceedsThreshold(
     return false;
 }
 
-bool loadExceedsThresholds(
+/*
+ * Returns true if the current load has reached one of the given thresholds.
+ *
+ * We only consider the 15m load threshold to be reached if also the respective
+ * shorter load intervals have reached the same threshold. This ensures that we don't
+ * make a decision based on overload of the 15m threshold, even though the situation
+ * has already improved in the more recent past (1m or 5m) but not yet sufficently
+ * affected the longer interval. The same holds for the 5m load threshold.
+ */
+bool loadExceedsThreshold(
         std::function<Try<::os::Load>()> const & load,
         ::os::Load const & threshold)
 {
@@ -68,5 +77,6 @@ bool loadExceedsThresholds(
     }
     return false;
 }
+
 
 } } }

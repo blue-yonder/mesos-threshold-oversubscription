@@ -13,7 +13,7 @@ namespace threshold {
 
 bool memExceedsThreshold(std::function<Try<os::MemInfo>()> const &, Bytes const &);
 
-bool loadExceedsThresholds(std::function<Try<::os::Load>()> const &, ::os::Load const &);
+bool loadExceedsThreshold(std::function<Try<::os::Load>()> const &, ::os::Load const &);
 
 
 } } }

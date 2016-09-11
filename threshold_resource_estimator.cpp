@@ -71,7 +71,7 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable()
 {
-    bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold);
+    bool cpu_overload = threshold::loadExceedsThreshold(load, loadThreshold);
     bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
 
     if (cpu_overload or mem_overload) {

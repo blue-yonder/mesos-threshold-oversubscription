@@ -1,5 +1,6 @@
 #include "threshold_qos_controller.hpp"
 
+#include <algorithm>
 #include <list>
 #include <limits>
 
@@ -75,33 +76,73 @@ process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections(
     return usage().then(process::defer(self(), &Self::_corrections, std::placeholders::_1));
 }
 
+namespace {
+
+QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
+    QoSCorrection correction;
+    correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
+    correction.mutable_kill()->mutable_framework_id()->CopyFrom(
+        executor.executor_info().framework_id());
+    correction.mutable_kill()->mutable_executor_id()->CopyFrom(
+        executor.executor_info().executor_id());
+    return correction;
+}
+
+bool most_greedy_revocable( ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
+    int const usage_a = 0 ? Resources(a.allocated()).revocable().empty()
+                          : a.statistics().mem_total_bytes();
+    int const usage_b = 0 ? Resources(b.allocated()).revocable().empty()
+                          : b.statistics().mem_total_bytes();
+    return (usage_a < usage_b);
+}
+
+}
+
 process::Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(ResourceUsage const & usage) {
 
-    bool cpu_overload = threshold::loadExceedsThresholds(load, loadThreshold);
-    bool mem_overload = threshold::memExceedsThreshold(memory, memThreshold);
+    if (threshold::memExceedsThreshold(memory, memThreshold)) {
+        // We assume all tasks are run in cgroups so that a single task cannot overload
+        // the entire host. The host memory may only be exceeded due to the existence of revocable
+        // tasks.
+        //
+        // By killing a single revocable task per correction interval, we prevent runs of the
+        // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
+        // not differentiate between revocable and non-revocalbe tasks, therefore leading to
+        // potential SLA violations on our end. (This could be changed if Mesos adopts the
+        // oom.victim cgroup.)
+        //
+        // If there are revocable tasks, we kill the one that has the largest memory footprint.
+        auto const most_greedy = std::max_element(
+            usage.executors().begin(),
+            usage.executors().end(),
+            most_greedy_revocable);
 
-    list<QoSCorrection> corrections;
+        if (usage.executors().end() != most_greedy &&
+            !Resources(most_greedy->allocated()).revocable().empty()) {
 
-    if (mem_overload || cpu_overload) {
+            return list<QoSCorrection>{killCorrection(*most_greedy)};
+        }
 
-        foreach (const ResourceUsage::Executor& executor, usage.executors()) {
+    }
+    if (threshold::loadExceedsThreshold(load, loadThreshold)) {
+        // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
+        // that a  single cgroup cannot overload the entire host and starve other tasks
+        // (even though there is a potetential risk of slightly increased tail latency).
+        //
+        // This basic protection enables us to react to CPU overload situations in a rather
+        // calm and defered fashion, i.e. kill a random task per correction interval if any
+        // load threshold is exceeded.
+        //
+        // Killing a random tasks rather than the one that is using the most cpu time is a
+        // simplificiation. Otherwise we would have to make this QoSController stateful in order
+        // to measure which revocable task is using the most CPU time.
+        foreach (ResourceUsage::Executor const & executor, usage.executors()) {
             if (!Resources(executor.allocated()).revocable().empty()) {
-                QoSCorrection correction;
-
-                correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
-                correction.mutable_kill()->mutable_framework_id()->CopyFrom(
-                    executor.executor_info().framework_id());
-                correction.mutable_kill()->mutable_executor_id()->CopyFrom(
-                    executor.executor_info().executor_id());
-
-                corrections.push_back(correction);
-
-                break; // Kill one revocable executors.
-
+                return list<QoSCorrection>{killCorrection(executor)};
             }
         }
     }
-    return corrections;
+    return list<QoSCorrection>();
 }
 
 
