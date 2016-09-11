@@ -107,8 +107,8 @@ mesos::modules::Module<mesos::slave::ResourceEstimator> com_blue_yonder_Threshol
 mesos::modules::Module<mesos::slave::QoSController> com_blue_yonder_ThresholdQoSController(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
-    "Matthias Bach",
-    "matthias.bach@blue-yonder.com",
+    "Stephan Erb",
+    "stephan.erb@blue-yonder.com",
     "Threshold QoS Controller Module.",
     compatible,
     create_controller
