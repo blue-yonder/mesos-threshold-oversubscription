@@ -37,13 +37,10 @@ approaching critical levels that could negativly affect non-revocable tasks.
 ![threshold mechanics](docs/mechanics.png)
 
 Revocable resources will only be offered if the system utilization remains below the estimation
-threshold. If load spikes
-
-
- to the utilization is further surpassing the QoS threshold, the controller will begin
-killing revocable tasks until the utilization drops. Assuming the utilization drops below the
-QoS but not below the estimation threshold, the freed resources will not be re-offered, thus
-preventing further further overload of the host.
+threshold. If utilization spikes above, no more revocable resources are offered. If it further
+surpasses the QoS threshold, the controller will begin to kill revocable tasks until the
+utilization drops. Assuming the utilization drops below the QoS but not below the estimation
+threshold, the freed resources will not be re-offered, thus preventing further overload of the host.
 
 
 Installation
