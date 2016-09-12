@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <stout/os.hpp>
 #include "os.hpp"
 
@@ -21,30 +23,47 @@ public:
     : value{std::make_shared<ResourceUsage>()}
   {};
 
+
+  void setMany(
+    std::vector<std::string> const & revocable_allocated,
+    std::vector<std::string> const & non_revocable_allocated
+  ) {
+    value->Clear();
+
+    for (auto const & task_resources : revocable_allocated) {
+      auto * revocable_executor = value->add_executors();
+      auto revocable_resources = Resources::parse(task_resources);
+      for(auto const & parsed_resource: revocable_resources.get()) {
+        auto * mutable_resource = revocable_executor->add_allocated();
+        mutable_resource->CopyFrom(parsed_resource);
+        mutable_resource->mutable_revocable();  // mark as revocable
+      }
+    }
+
+    for (auto const & task_resources : non_revocable_allocated) {
+      auto * non_revocable_executor = value->add_executors();
+      auto non_revocable_resources = Resources::parse(task_resources);
+      for(auto const & parsed_resource: non_revocable_resources.get()) {
+        auto * mutable_resource = non_revocable_executor->add_allocated();
+        mutable_resource->CopyFrom(parsed_resource);
+        mutable_resource->clear_revocable();  // mark as non-revocable
+      }
+    }
+  }
+
   void set(
     std::string const & revocable_allocated,
     std::string const & non_revocable_allocated
   ) {
-    value->Clear();
-    auto * revocable_executor = value->add_executors();
-    auto revocable_resources = Resources::parse(revocable_allocated);
-    for(auto const & parsed_resource: revocable_resources.get()) {
-      auto * mutable_resource = revocable_executor->add_allocated();
-      mutable_resource->CopyFrom(parsed_resource);
-      mutable_resource->mutable_revocable();  // mark as revocable
-    }
-
-    auto * non_revocable_executor = value->add_executors();
-    auto non_revocable_resources = Resources::parse(non_revocable_allocated);
-    for(auto const & parsed_resource: non_revocable_resources.get()) {
-      auto * mutable_resource = non_revocable_executor->add_allocated();
-      mutable_resource->CopyFrom(parsed_resource);
-      mutable_resource->clear_revocable();  // mark as non-revocable
-    }
+    setMany({revocable_allocated}, {non_revocable_allocated});
   }
+
   Future<ResourceUsage> operator()() const {
     return *value;
   }
+
+
+
 private:
   std::shared_ptr<ResourceUsage> value;
 };

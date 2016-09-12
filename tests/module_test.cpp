@@ -18,6 +18,7 @@ using std::string;
 using process::Future;
 using process::Owned;
 
+using mesos::Resources;
 using mesos::ResourceUsage;
 using mesos::modules::ModuleBase;
 using mesos::modules::Module;
@@ -187,6 +188,18 @@ ResourceUsage noUsage() {
   return ResourceUsage{};
 }
 
+ResourceUsage someUsage() {
+  ResourceUsage usage;
+  auto * revocable_executor = usage.add_executors();
+  auto revocable_resources = Resources::parse("cpus(*):1;mem(*):32");
+  for(auto const & parsed_resource: revocable_resources.get()) {
+    auto * mutable_resource = revocable_executor->add_allocated();
+    mutable_resource->CopyFrom(parsed_resource);
+    mutable_resource->mutable_revocable();  // mark as revocable
+  }
+  return usage;
+}
+
 TEST_F(ThresholdResourceEstimatorTest, test_load_library) {
   auto load_result = loadModule();
   ASSERT_FALSE(load_result.isError()) << load_result.error();
@@ -201,9 +214,9 @@ TEST_F(ThresholdResourceEstimatorTest, test_no_thresholds) {
     "cpus(*):2;mem(*):512", None(), None(), None(), None()  // no thresholds set
   ))};
   estimator->initialize(noUsage);
-  auto const available_resources = estimator->oversubscribable().get();
-  EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-  EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
+  auto const availableResources = estimator->oversubscribable().get();
+  EXPECT_EQ(2.0, availableResources.revocable().cpus().get());
+  EXPECT_EQ(512, availableResources.revocable().mem().get().megabytes());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_below_thresholds) {
@@ -211,9 +224,9 @@ TEST_F(ThresholdResourceEstimatorTest, test_below_thresholds) {
     "cpus(*):2;mem(*):512", "1000.0", "1000.0", "1000.0", "500000"  // high threshloads that should never be hit
   ))};
   estimator->initialize(noUsage);
-  auto const available_resources = estimator->oversubscribable().get();
-  EXPECT_EQ(2.0, available_resources.revocable().cpus().get());
-  EXPECT_EQ(512, available_resources.revocable().mem().get().megabytes());
+  auto const availableResources = estimator->oversubscribable().get();
+  EXPECT_EQ(2.0, availableResources.revocable().cpus().get());
+  EXPECT_EQ(512, availableResources.revocable().mem().get().megabytes());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_above_thresholds) {
@@ -221,8 +234,8 @@ TEST_F(ThresholdResourceEstimatorTest, test_above_thresholds) {
     "cpus(*):2;mem(*):512", "0.0", "0.0", "0.0", "0"  // absurdly low load limit that will always be hit
   ))};
   estimator->initialize(noUsage);
-  auto const available_resources = estimator->oversubscribable().get();
-  EXPECT_TRUE(available_resources.empty());
+  auto const availableResources = estimator->oversubscribable().get();
+  EXPECT_TRUE(availableResources.empty());
 }
 
 TEST_F(ThresholdQoSControllerTest, test_load_library) {
@@ -232,6 +245,33 @@ TEST_F(ThresholdQoSControllerTest, test_load_library) {
   verifyModule(controllerModuleName, moduleBase, "QoSController");
   Owned<QoSController> controller{createController(make_parameters("", None(), None(), None(), None()))};
   ASSERT_NE(nullptr, controller.get());
+}
+
+TEST_F(ThresholdQoSControllerTest, test_no_thresholds) {
+  Owned<QoSController> controller{createController(make_parameters(
+    "cpus(*):2;mem(*):512", None(), None(), None(), None()  // no thresholds set
+  ))};
+  controller->initialize(someUsage);
+  auto const corrections = controller->corrections().get();
+  EXPECT_TRUE(corrections.empty());
+}
+
+TEST_F(ThresholdQoSControllerTest, test_below_thresholds) {
+  Owned<QoSController> controller{createController(make_parameters(
+    "cpus(*):2;mem(*):512", "1000.0", "1000.0", "1000.0", "500000"  // high threshloads that should never be hit
+  ))};
+  controller->initialize(someUsage);
+  auto const corrections = controller->corrections().get();
+  EXPECT_TRUE(corrections.empty());
+}
+
+TEST_F(ThresholdQoSControllerTest, test_above_thresholds) {
+  Owned<QoSController> controller{createController(make_parameters(
+    "cpus(*):2;mem(*):512", "0.0", "0.0", "0.0", "0"  // absurdly low load limit that will always be hit
+  ))};
+  controller->initialize(someUsage);
+  auto const corrections = controller->corrections().get();
+  EXPECT_TRUE(corrections.size() == 1);
 }
 
 }
