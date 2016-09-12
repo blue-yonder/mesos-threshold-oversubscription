@@ -9,7 +9,7 @@ Versioning](http://semver.org/).
 
 ### Added
 
-* QoSController implemenation that reacts on load and memory thresholds
+* QoSController implemenation that reacts on load and memory thresholds.
 
 ### Changed
 
@@ -46,4 +46,4 @@ Versioning](http://semver.org/).
 * Offer a fixed amount of resources for oversubscription.
 * Stop offering resources for oversubscription if load threshold is exceeded.
 * Stop offering resources for oversubscription if memory threshold is exceeded.
-* Compatibility with Mesos 0.28
+* Compatibility with Mesos 0.28.

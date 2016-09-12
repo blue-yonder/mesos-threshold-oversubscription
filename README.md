@@ -133,7 +133,7 @@ This comes with a few limitations:
 * Being based on load and memory thresholds, the oversubscription technique described here
   may not be suitable for aggressive oversubscription on systems with very latency sensitive
   services. If you have such a requirement, either be very conservative or have a look at
-  [Intel/Mesosphere Serenity](https://github.com/mesosphere/serenity)
+  [Intel/Mesosphere Serenity](https://github.com/mesosphere/serenity).
 
 * Both the estimator and the QoS controller rely on the Linux/Posix system `load`. It is defined as
   the exponentially decaying average of `num runnable processes +  num uninterruptable processes`.
@@ -143,7 +143,7 @@ This comes with a few limitations:
 * When the CPU is overloaded, a random un-revocable task is killed rather than the most aggressive
   one.
 
-We may feel compelled to address some of these limitations in the future :-)
+We may feel compelled to address some of these limitations in the future. :-)
 
 
 License
