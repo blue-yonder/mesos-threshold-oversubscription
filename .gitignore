@@ -10,3 +10,4 @@ CTestTestfile.cmake
 
 # Build dir
 build
+.vagrant
