@@ -4,6 +4,21 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+0.3.0 (unreleased)
+------------------
+
+### Added
+
+* QoSController implemenation that reacts on load and memory thresholds
+
+### Changed
+
+* The library has ben renamed to `libthreshold_oversubscription.so`. It contains both the
+  `ThresholdResourceEstimator` and the `ThresholdQoSController` module.
+* Changed the semantics of a load threshold: A load interval (5m, 15m) will only be considered
+  exceeded if the previous intervals have exceeded the same threshold. This ensures
+  that we only act on a 5m or 15m threshold if there is no indication that the load will change
+  automatically without our action.
 
 0.2.1 (2016-08-03)
 ------------------
