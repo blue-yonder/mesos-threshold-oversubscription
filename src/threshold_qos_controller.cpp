@@ -22,7 +22,6 @@ using process::dispatch;
 using process::Failure;
 using process::Future;
 using process::Process;
-using process::Owned;
 
 using mesos::Resources;
 using mesos::ResourceUsage;
