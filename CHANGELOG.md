@@ -4,7 +4,7 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
-0.3.0 (unreleased)
+0.3.0 (2016-09-13)
 ------------------
 
 ### Added
