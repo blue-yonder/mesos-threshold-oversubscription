@@ -38,6 +38,10 @@ public:
         mutable_resource->CopyFrom(parsed_resource);
         mutable_resource->mutable_revocable();  // mark as revocable
       }
+
+      // always report all memory as actually used
+      auto revocable_stats = revocable_executor->mutable_statistics();
+      revocable_stats->set_mem_total_bytes(revocable_resources.get().mem().get().bytes());
     }
 
     for (auto const & task_resources : non_revocable_allocated) {
@@ -48,6 +52,10 @@ public:
         mutable_resource->CopyFrom(parsed_resource);
         mutable_resource->clear_revocable();  // mark as non-revocable
       }
+
+      // always report all memory as actually used
+      auto non_revocable_stats = non_revocable_executor->mutable_statistics();
+      non_revocable_stats->set_mem_total_bytes(non_revocable_resources.get().mem().get().bytes());
     }
   }
 

@@ -86,9 +86,9 @@ QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
   return correction;
 }
 
-bool mostGreedyRevocable( ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
-  int memA = 0 ? Resources(a.allocated()).revocable().empty() : a.statistics().mem_total_bytes();
-  int memB = 0 ? Resources(b.allocated()).revocable().empty() : b.statistics().mem_total_bytes();
+bool mostGreedyRevocable(ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
+  auto const memA = Resources(a.allocated()).revocable().empty() ? 0 : a.statistics().mem_total_bytes();
+  auto const memB = Resources(b.allocated()).revocable().empty() ? 0 : b.statistics().mem_total_bytes();
   return (memA < memB);
 }
 
