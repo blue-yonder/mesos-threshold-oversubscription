@@ -2,9 +2,8 @@
 
 #include <stout/os.hpp>
 
-#include "threshold_resource_estimator.hpp"
 #include "threshold_qos_controller.hpp"
-
+#include "threshold_resource_estimator.hpp"
 
 #include "os.hpp"
 #include "threshold.hpp"
@@ -17,15 +16,16 @@ using com::blue_yonder::ThresholdQoSController;
 
 namespace {
 
-struct ParsingError {
+struct ParsingError
+{
   std::string message;
 
-  ParsingError(std::string const & description, std::string const & error)
+  ParsingError(std::string const& description, std::string const& error)
     : message("Failed to parse " + description + ": " + error)
   {}
 };
 
-double parseDoubleParameter(std::string const & value, std::string const & description) {
+double parseDouble(std::string const& value, std::string const& description) {
   auto thresholdParam = numify<double>(value);
   if (thresholdParam.isError()) {
     throw ParsingError{description, thresholdParam.error()};
@@ -34,7 +34,7 @@ double parseDoubleParameter(std::string const & value, std::string const & descr
 }
 
 template <typename Interface, typename ThresholdActor>
-static Interface* create(mesos::Parameters const & parameters) {
+static Interface* create(mesos::Parameters const& parameters) {
   Resources resources;
   Load loadThreshold = {
     std::numeric_limits<double>::max(),
@@ -43,7 +43,7 @@ static Interface* create(mesos::Parameters const & parameters) {
   Bytes memThreshold = std::numeric_limits<uint64_t>::max();
 
   try {
-    for (auto const & parameter: parameters.parameter()) {
+    for (auto const& parameter : parameters.parameter()) {
       // Parse the resource to offer for oversubscription
       if (parameter.key() == "resources") {
         Try<Resources> parsed = Resources::parse(parameter.value());
@@ -55,11 +55,11 @@ static Interface* create(mesos::Parameters const & parameters) {
 
       // Parse any thresholds
       if (parameter.key() == "load_threshold_1min") {
-        loadThreshold.one = parseDoubleParameter(parameter.value(), "1 min load threshold");
+        loadThreshold.one = parseDouble(parameter.value(), "1 min load threshold");
       } else if (parameter.key() == "load_threshold_5min") {
-        loadThreshold.five = parseDoubleParameter(parameter.value(), "5 min load threshold");
+        loadThreshold.five = parseDouble(parameter.value(), "5 min load threshold");
       } else if (parameter.key() == "load_threshold_15min") {
-        loadThreshold.fifteen = parseDoubleParameter(parameter.value(), "15 min load threshold");
+        loadThreshold.fifteen = parseDouble(parameter.value(), "15 min load threshold");
       } else if (parameter.key() == "mem_threshold") {
         auto thresholdParam = Bytes::parse(parameter.value() + "MB");
         if (thresholdParam.isError()) {
@@ -68,33 +68,28 @@ static Interface* create(mesos::Parameters const & parameters) {
         memThreshold = thresholdParam.get();
       }
     }
-  } catch(ParsingError e) {
+  } catch (ParsingError e) {
     LOG(ERROR) << e.message;
     return nullptr;
   }
 
   return new ThresholdActor(
-    os::loadavg,
-    com::blue_yonder::os::meminfo,
-    resources,
-    loadThreshold,
-    memThreshold
-  );
+    os::loadavg, com::blue_yonder::os::meminfo, resources, loadThreshold, memThreshold);
 }
 
-static mesos::slave::ResourceEstimator* createEstimator(mesos::Parameters const & parameters) {
+static mesos::slave::ResourceEstimator* createEstimator(mesos::Parameters const& parameters) {
   return create<mesos::slave::ResourceEstimator, ThresholdResourceEstimator>(parameters);
 }
 
-static mesos::slave::QoSController* createController(mesos::Parameters const & parameters) {
+static mesos::slave::QoSController* createController(mesos::Parameters const& parameters) {
   return create<mesos::slave::QoSController, ThresholdQoSController>(parameters);
 }
 
 static bool compatible() {
-  return true;  // TODO this might be slightly overoptimistic
+  return true; // TODO this might be slightly overoptimistic
 }
 
-}
+} // namespace {
 
 mesos::modules::Module<mesos::slave::ResourceEstimator> com_blue_yonder_ThresholdResourceEstimator(
   MESOS_MODULE_API_VERSION,
@@ -103,8 +98,7 @@ mesos::modules::Module<mesos::slave::ResourceEstimator> com_blue_yonder_Threshol
   "matthias.bach@blue-yonder.com",
   "Threshold Resource Estimator Module.",
   compatible,
-  createEstimator
-);
+  createEstimator);
 
 
 mesos::modules::Module<mesos::slave::QoSController> com_blue_yonder_ThresholdQoSController(
@@ -114,5 +108,4 @@ mesos::modules::Module<mesos::slave::QoSController> com_blue_yonder_ThresholdQoS
   "stephan.erb@blue-yonder.com",
   "Threshold QoS Controller Module.",
   compatible,
-  createController
-);
+  createController);

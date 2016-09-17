@@ -4,15 +4,14 @@
 
 #include <gtest/gtest.h>
 
-
 using mesos::Resources;
 
 using com::blue_yonder::ThresholdResourceEstimator;
 
-
 namespace {
 
-struct ThresholdResourceEstimatorTests : public ::testing::Test {
+struct ThresholdResourceEstimatorTests : public ::testing::Test
+{
   ResourceUsageFake usage;
   LoadFake load;
   MemInfoFake memory;
@@ -116,5 +115,4 @@ TEST_F(EstimatorTests, mem_not_available) {
   EXPECT_TRUE(availableResources.empty());
 }
 
-
-}
+} // namespace {

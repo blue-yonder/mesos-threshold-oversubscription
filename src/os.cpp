@@ -56,4 +56,3 @@ Try<com::blue_yonder::os::MemInfo> com::blue_yonder::os::meminfo() {
 
   return MemInfo{total.get(), free.get(), cached.get()};
 }
-

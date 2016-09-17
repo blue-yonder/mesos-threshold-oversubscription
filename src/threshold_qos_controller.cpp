@@ -1,8 +1,8 @@
 #include "threshold_qos_controller.hpp"
 
 #include <algorithm>
-#include <list>
 #include <limits>
+#include <list>
 
 #include <stout/os.hpp>
 
@@ -38,15 +38,15 @@ class ThresholdQoSControllerProcess : public Process<ThresholdQoSControllerProce
 {
 public:
   ThresholdQoSControllerProcess(
-    std::function<Future<ResourceUsage>()> const &,
-    std::function<Try<Load>()> const &,
-    std::function<Try<os::MemInfo>()> const &,
-    Load const &,
-    Bytes const &
-  );
+    std::function<Future<ResourceUsage>()> const&,
+    std::function<Try<Load>()> const&,
+    std::function<Try<os::MemInfo>()> const&,
+    Load const&,
+    Bytes const&);
   Future<list<QoSCorrection>> corrections();
+
 private:
-  Future<list<QoSCorrection>> _corrections(ResourceUsage const & usage);
+  Future<list<QoSCorrection>> _corrections(ResourceUsage const& usage);
 
   std::function<Future<ResourceUsage>()> const usage;
   std::function<Try<Load>()> const load;
@@ -57,17 +57,17 @@ private:
 
 
 ThresholdQoSControllerProcess::ThresholdQoSControllerProcess(
-  std::function<Future<ResourceUsage>()> const & usage,
-  std::function<Try<Load>()> const & load,
-  std::function<Try<os::MemInfo>()> const & memory,
-  Load const & loadThreshold,
-  Bytes const & memThreshold
-) : ProcessBase(process::ID::generate("threshold-qos-controller")),
-  usage{usage},
-  load{load},
-  memory{memory},
-  loadThreshold{loadThreshold},
-  memThreshold{memThreshold}
+  std::function<Future<ResourceUsage>()> const& usage,
+  std::function<Try<Load>()> const& load,
+  std::function<Try<os::MemInfo>()> const& memory,
+  Load const& loadThreshold,
+  Bytes const& memThreshold)
+  : ProcessBase(process::ID::generate("threshold-qos-controller")),
+    usage{usage},
+    load{load},
+    memory{memory},
+    loadThreshold{loadThreshold},
+    memThreshold{memThreshold}
 {}
 
 Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections() {
@@ -76,7 +76,7 @@ Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections() {
 
 namespace {
 
-QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
+QoSCorrection killCorrection(ResourceUsage::Executor const& executor) {
   QoSCorrection correction;
   correction.set_type(mesos::slave::QoSCorrection_Type_KILL);
   correction.mutable_kill()->mutable_framework_id()->CopyFrom(
@@ -86,54 +86,53 @@ QoSCorrection killCorrection(ResourceUsage::Executor const & executor) {
   return correction;
 }
 
-bool mostGreedyRevocable(ResourceUsage::Executor const & a, ResourceUsage::Executor const & b) {
-  auto const memA = Resources(a.allocated()).revocable().empty() ? 0 : a.statistics().mem_total_bytes();
-  auto const memB = Resources(b.allocated()).revocable().empty() ? 0 : b.statistics().mem_total_bytes();
+bool mostGreedyRevocable(ResourceUsage::Executor const& a, ResourceUsage::Executor const& b) {
+  auto const memA =
+    Resources(a.allocated()).revocable().empty() ? 0 : a.statistics().mem_total_bytes();
+  auto const memB =
+    Resources(b.allocated()).revocable().empty() ? 0 : b.statistics().mem_total_bytes();
   return (memA < memB);
 }
 
-}
+} // namespace {
 
-Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(
-    ResourceUsage const & usage)
-{
-  // We assume all tasks are run in cgroups so that a single task cannot overload
-  // the entire host. The host memory may only be exceeded due to the existence of revocable
-  // tasks.
+Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(ResourceUsage const& usage) {
+  // We assume all tasks are run in cgroups so that a single task cannot
+  // overload the entire host. The host memory may only be exceeded due to the
+  // existence of revocable tasks.
   //
-  // By killing a single revocable task per correction interval, we prevent runs of the
-  // Linux OOM due to host memory pressure. The latter has the disadvantage that it does
-  // not differentiate between revocable and non-revocalbe tasks, therefore leading to
-  // potential SLA violations at our end. (This could be changed if Mesos adopts the
-  // oom.victim cgroup)
+  // By killing a single revocable task per correction interval, we prevent
+  // runs of the Linux OOM due to host memory pressure. The latter has the
+  // disadvantage that it does not differentiate between revocable and non-
+  // revocalbe tasks, therefore leading to potential SLA violations at our
+  // end. (This could be changed if Mesos adopts the oom.victim cgroup)
   //
-  // If there are revocable tasks, we kill the one that has the largest memory footprint.
+  // If there are revocable tasks, we kill the one that has the largest memory
+  // footprint.
   if (threshold::memExceedsThreshold(memory, memThreshold)) {
-    auto const most_greedy = std::max_element(
-      usage.executors().begin(),
-      usage.executors().end(),
-      mostGreedyRevocable);
+    auto const most_greedy =
+      std::max_element(usage.executors().begin(), usage.executors().end(), mostGreedyRevocable);
 
     if (usage.executors().end() != most_greedy &&
         !Resources(most_greedy->allocated()).revocable().empty()) {
-
       return list<QoSCorrection>{killCorrection(*most_greedy)};
     }
   }
 
-  // We assume all tasks are run in cgroups with appropriate shares and quota. This ensures
-  // that a  single cgroup cannot overload the entire host and starve other tasks
-  // (even though there is a potetential risk of slightly increased tail latency).
+  // We assume all tasks are run in cgroups with appropriate shares and quota.
+  // This ensures that a  single cgroup cannot overload the entire host and
+  // starve other tasks (even though there is a potetential risk of slightly
+  // increased tail latency).
   //
-  // This basic protection enables us to react to CPU overload situations in a rather
-  // calm and defered fashion, i.e. kill a random task per correction interval if any
-  // load threshold is exceeded.
+  // This basic protection enables us to react to CPU overload situations in a
+  // rather calm and defered fashion, i.e. kill a random task per correction
+  // interval if any load threshold is exceeded.
   //
-  // Killing a random tasks rather than the one that is using the most cpu time is a
-  // simplificiation. Otherwise we would have to make this QoSController stateful in order
-  // to measure which revocable task is using the most CPU time.
+  // Killing a random tasks rather than the one that is using the most cpu time
+  // is a simplificiation. Otherwise we would have to make this QoSController
+  // stateful in order to measure which revocable task is using the most CPU time.
   if (threshold::loadExceedsThreshold(load, loadThreshold)) {
-    foreach (ResourceUsage::Executor const & executor, usage.executors()) {
+    foreach (ResourceUsage::Executor const& executor, usage.executors()) {
       if (!Resources(executor.allocated()).revocable().empty()) {
         return list<QoSCorrection>{killCorrection(executor)};
       }
@@ -144,19 +143,18 @@ Future<list<QoSCorrection>> ThresholdQoSControllerProcess::_corrections(
 
 
 ThresholdQoSController::ThresholdQoSController(
-  std::function<Try<Load>()> const & load,
-  std::function<Try<os::MemInfo>()> const & memory,
-  mesos::Resources const & totalRevocable,
-  Load const & loadThreshold,
-  Bytes const & memThreshold
-) :
-  load{load},
-  memory{memory},
-  loadThreshold{loadThreshold},
-  memThreshold{memThreshold}
-{};
+  std::function<Try<Load>()> const& load,
+  std::function<Try<os::MemInfo>()> const& memory,
+  mesos::Resources const& totalRevocable,
+  Load const& loadThreshold,
+  Bytes const& memThreshold)
+  : load{load},
+    memory{memory},
+    loadThreshold{loadThreshold},
+    memThreshold{memThreshold}
+{}
 
-Try<Nothing> ThresholdQoSController::initialize(std::function<Future<ResourceUsage>()> const & usage) {
+Try<Nothing> ThresholdQoSController::initialize(std::function<Future<ResourceUsage>()> const& usage) {
   if (process.get() != nullptr) {
     return Error("ThresholdQoSController has already been initialized");
   }

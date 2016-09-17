@@ -7,11 +7,14 @@
 
 #include <mesos/module/resource_estimator.hpp>
 
-namespace com { namespace blue_yonder {
+namespace com {
+namespace blue_yonder {
 
 namespace os {
-  struct MemInfo;
-}
+
+struct MemInfo;
+
+} // namespace os {
 
 class ThresholdResourceEstimatorProcess;
 
@@ -19,12 +22,11 @@ class ThresholdResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
   ThresholdResourceEstimator(
-    std::function<Try<::os::Load>()> const & load,
-    std::function<Try<os::MemInfo>()> const & memory,
-    mesos::Resources const & totalRevocable,
-    ::os::Load const & loadThreshold,
-    Bytes const & memThreshold
-  );
+    std::function<Try<::os::Load>()> const& load,
+    std::function<Try<os::MemInfo>()> const& memory,
+    mesos::Resources const& totalRevocable,
+    ::os::Load const& loadThreshold,
+    Bytes const& memThreshold);
   virtual Try<Nothing> initialize(const std::function<process::Future<mesos::ResourceUsage>()>&) final;
   virtual process::Future<mesos::Resources> oversubscribable() final;
   virtual ~ThresholdResourceEstimator();
@@ -38,4 +40,5 @@ private:
   Bytes const memThreshold;
 };
 
-} }
+} // namespace blue_yonder {
+} // namespace os {

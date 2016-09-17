@@ -17,26 +17,24 @@ using com::blue_yonder::os::MemInfo;
 
 namespace {
 
-class ResourceUsageFake {
+class ResourceUsageFake
+{
 public:
-  ResourceUsageFake()
-    : value{std::make_shared<ResourceUsage>()}
-  {};
-
+  ResourceUsageFake() : value{std::make_shared<ResourceUsage>()} {};
 
   void setMany(
-    std::vector<std::string> const & revocable_allocated,
-    std::vector<std::string> const & non_revocable_allocated
-  ) {
+    std::vector<std::string> const& revocable_allocated,
+    std::vector<std::string> const& non_revocable_allocated)
+  {
     value->Clear();
 
-    for (auto const & task_resources : revocable_allocated) {
-      auto * revocable_executor = value->add_executors();
+    for (auto const& task_resources : revocable_allocated) {
+      auto* revocable_executor = value->add_executors();
       auto revocable_resources = Resources::parse(task_resources);
-      for(auto const & parsed_resource: revocable_resources.get()) {
-        auto * mutable_resource = revocable_executor->add_allocated();
+      for (auto const& parsed_resource : revocable_resources.get()) {
+        auto* mutable_resource = revocable_executor->add_allocated();
         mutable_resource->CopyFrom(parsed_resource);
-        mutable_resource->mutable_revocable();  // mark as revocable
+        mutable_resource->mutable_revocable(); // mark as revocable
       }
 
       // always report all memory as actually used
@@ -44,13 +42,13 @@ public:
       revocable_stats->set_mem_total_bytes(revocable_resources.get().mem().get().bytes());
     }
 
-    for (auto const & task_resources : non_revocable_allocated) {
-      auto * non_revocable_executor = value->add_executors();
+    for (auto const& task_resources : non_revocable_allocated) {
+      auto* non_revocable_executor = value->add_executors();
       auto non_revocable_resources = Resources::parse(task_resources);
-      for(auto const & parsed_resource: non_revocable_resources.get()) {
-        auto * mutable_resource = non_revocable_executor->add_allocated();
+      for (auto const& parsed_resource : non_revocable_resources.get()) {
+        auto* mutable_resource = non_revocable_executor->add_allocated();
         mutable_resource->CopyFrom(parsed_resource);
-        mutable_resource->clear_revocable();  // mark as non-revocable
+        mutable_resource->clear_revocable(); // mark as non-revocable
       }
 
       // always report all memory as actually used

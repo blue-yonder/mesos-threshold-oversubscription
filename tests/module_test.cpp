@@ -6,10 +6,10 @@
 
 #include <process/owned.hpp>
 
-#include <mesos/version.hpp>
 #include <mesos/module.hpp>
-#include <mesos/module/resource_estimator.hpp>
 #include <mesos/module/qos_controller.hpp>
+#include <mesos/module/resource_estimator.hpp>
+#include <mesos/version.hpp>
 
 #include <gtest/gtest.h>
 
@@ -33,7 +33,8 @@ string const estimatorModuleName{"com_blue_yonder_ThresholdResourceEstimator"};
 string const controllerModuleName{"com_blue_yonder_ThresholdQoSController"};
 
 
-class ModuleTest : public ::testing::Test {
+class ModuleTest : public ::testing::Test
+{
 public:
   ModuleTest()
     : dynamicLibrary(new DynamicLibrary()),
@@ -48,16 +49,14 @@ public:
     ::testing::Test::TearDown();
   }
 
-  Try<ModuleBase*> loadModule(string const &, string const &);
+  Try<ModuleBase*> loadModule(string const&, string const&);
 
 private:
   Owned<DynamicLibrary> dynamicLibrary;
   ModuleBase* moduleBase;
 };
 
-Try<ModuleBase*> ModuleTest::loadModule(
-    string const & libraryName,
-    string const & moduleName)
+Try<ModuleBase*> ModuleTest::loadModule(string const& libraryName, string const& moduleName)
 {
   if (this->moduleBase == nullptr) {
     auto const path = "../src/" + os::libraries::expandName(libraryName);
@@ -77,51 +76,49 @@ Try<ModuleBase*> ModuleTest::loadModule(
 }
 
 
-class ThresholdResourceEstimatorTest : public ModuleTest {
+class ThresholdResourceEstimatorTest : public ModuleTest
+{
 public:
-  ThresholdResourceEstimatorTest() : ModuleTest() { }
-
+  ThresholdResourceEstimatorTest() : ModuleTest() {}
   Try<ModuleBase*> loadModule();
-  ResourceEstimator* createEstimator(mesos::Parameters const & params);
-
+  ResourceEstimator* createEstimator(mesos::Parameters const& params);
 };
 
-Try<ModuleBase*>  ThresholdResourceEstimatorTest::loadModule() {
+Try<ModuleBase*> ThresholdResourceEstimatorTest::loadModule()
+{
   return ModuleTest::loadModule(libraryName, estimatorModuleName);
 }
 
-ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parameters const & params) {
+ResourceEstimator* ThresholdResourceEstimatorTest::createEstimator(mesos::Parameters const& params) {
   auto load_result = this->loadModule();
   ModuleBase* moduleBase = load_result.get();
   auto estimatorModule = reinterpret_cast<Module<ResourceEstimator>*>(moduleBase);
   return estimatorModule->create(params);
 }
 
-class ThresholdQoSControllerTest : public ModuleTest {
+class ThresholdQoSControllerTest : public ModuleTest
+{
 public:
-  ThresholdQoSControllerTest() : ModuleTest() { }
-
+  ThresholdQoSControllerTest() : ModuleTest() {}
   Try<ModuleBase*> loadModule();
-  QoSController* createController(mesos::Parameters const & params);
+  QoSController* createController(mesos::Parameters const& params);
 };
 
-Try<ModuleBase*>  ThresholdQoSControllerTest::loadModule() {
+Try<ModuleBase*> ThresholdQoSControllerTest::loadModule() {
   return ModuleTest::loadModule(libraryName, controllerModuleName);
 }
 
-QoSController* ThresholdQoSControllerTest::createController(mesos::Parameters const & params) {
+QoSController* ThresholdQoSControllerTest::createController(mesos::Parameters const& params) {
   auto load_result = this->loadModule();
   ModuleBase* moduleBase = load_result.get();
   auto estimatorModule = reinterpret_cast<Module<QoSController>*>(moduleBase);
   return estimatorModule->create(params);
 }
 
-void verifyModule(const string& moduleName, const ModuleBase* moduleBase, const string& kind)
-{
+void verifyModule(const string& moduleName, const ModuleBase* moduleBase, const string& kind) {
   ASSERT_TRUE(moduleBase != nullptr);
   ASSERT_TRUE(moduleBase->mesosVersion != NULL) << "Module " << moduleName << " is missing field 'mesosVersion'";
-  ASSERT_TRUE(moduleBase->moduleApiVersion != NULL)
-    << "Module " << moduleName <<" is missing field 'moduleApiVersion'";
+  ASSERT_TRUE(moduleBase->moduleApiVersion != NULL) << "Module " << moduleName <<" is missing field 'moduleApiVersion'";
   ASSERT_TRUE(moduleBase->authorName != NULL) << "Module " << moduleName << " is missing field 'authorName'";
   ASSERT_TRUE(moduleBase->authorEmail != NULL) << "Module " << moduleName << " is missing field 'authoEmail'";
   ASSERT_TRUE(moduleBase->description != NULL) << "Module " << moduleName << " is missing field 'description'";
@@ -142,41 +139,44 @@ void verifyModule(const string& moduleName, const ModuleBase* moduleBase, const 
   EXPECT_EQ(moduleMesosVersion.get(), mesosVersion.get())
     << "Module is not compiled for the current Mesos version.";
 
-  EXPECT_TRUE(moduleBase->compatible()) << "Module " << moduleName << "has determined to be incompatible";
+  EXPECT_TRUE(moduleBase->compatible()) << "Module " << moduleName
+                                        << "has determined to be incompatible";
 }
 
 mesos::Parameters make_parameters(
   std::string fixed,
-  Option<string> load_one, Option<string> load_five, Option<string> load_fifteen,
-  Option<string> mem_threshold
-) {
+  Option<string> load_one,
+  Option<string> load_five,
+  Option<string> load_fifteen,
+  Option<string> mem_threshold)
+{
   mesos::Parameters parameters{};
   {
-    auto * parameter = parameters.add_parameter();
+    auto* parameter = parameters.add_parameter();
     parameter->set_key("resources");
     parameter->set_value(fixed);
   }
 
   if (load_one.isSome()) {
-    auto * parameter = parameters.add_parameter();
+    auto* parameter = parameters.add_parameter();
     parameter->set_key("load_threshold_1min");
     parameter->set_value(load_one.get());
   }
 
   if (load_five.isSome()) {
-    auto * parameter = parameters.add_parameter();
+    auto* parameter = parameters.add_parameter();
     parameter->set_key("load_threshold_5min");
     parameter->set_value(load_five.get());
   }
 
   if (load_fifteen.isSome()) {
-    auto * parameter = parameters.add_parameter();
+    auto* parameter = parameters.add_parameter();
     parameter->set_key("load_threshold_15min");
     parameter->set_value(load_fifteen.get());
   }
 
   if (mem_threshold.isSome()) {
-    auto * parameter = parameters.add_parameter();
+    auto* parameter = parameters.add_parameter();
     parameter->set_key("mem_threshold");
     parameter->set_value(mem_threshold.get());
   }

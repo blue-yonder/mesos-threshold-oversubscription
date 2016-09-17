@@ -9,7 +9,6 @@
 using mesos::Resources;
 using mesos::ResourceUsage;
 
-
 namespace {
 
 TEST(ResourceUsageFakeTest, test_set) {
@@ -19,7 +18,7 @@ TEST(ResourceUsageFakeTest, test_set) {
   ResourceUsage usage = fake().get();
   Resources allocatedRevocable;
   Resources allocatedNonRevocable;
-  for(auto & executor: usage.executors()) {
+  for (auto& executor : usage.executors()) {
     allocatedRevocable += Resources(executor.allocated()).revocable();
     allocatedNonRevocable += Resources(executor.allocated()).nonRevocable();
   }
@@ -36,7 +35,7 @@ TEST(ResourceUsageFakeTest, test_set) {
   usage = copy().get();
 
   Resources copiedRevocable;
-  for(auto & executor: usage.executors()) {
+  for (auto& executor : usage.executors()) {
     copiedRevocable += Resources(executor.allocated()).revocable();
   }
   EXPECT_EQ(5, copiedRevocable.cpus().get());
@@ -44,11 +43,11 @@ TEST(ResourceUsageFakeTest, test_set) {
 }
 
 #define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
-  do { \
-    EXPECT_EQ(expect_one, load.one); \
-    EXPECT_EQ(expect_five, load.five); \
-    EXPECT_EQ(expect_fifteen, load.fifteen); \
-  } while(false); \
+  do {                                                             \
+    EXPECT_EQ(expect_one, load.one);                               \
+    EXPECT_EQ(expect_five, load.five);                             \
+    EXPECT_EQ(expect_fifteen, load.fifteen);                       \
+  } while (false);
 
 TEST(LoadFakeTest, test_set) {
   LoadFake fake;
@@ -92,6 +91,4 @@ TEST(MemInfoFakeTest, test_set_error) {
   EXPECT_TRUE(copy().isError());
 }
 
-
-
-}
+} // namespace {

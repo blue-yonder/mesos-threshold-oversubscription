@@ -2,9 +2,12 @@
 
 #include <stout/bytes.hpp>
 
-namespace com { namespace blue_yonder { namespace os {
+namespace com {
+namespace blue_yonder {
+namespace os {
 
-struct MemInfo {
+struct MemInfo
+{
   Bytes total;
   Bytes free;
   Bytes cached;
@@ -12,4 +15,6 @@ struct MemInfo {
 
 Try<MemInfo> meminfo();
 
-} } }
+} // os {
+} // blue_yonder {
+} // com {

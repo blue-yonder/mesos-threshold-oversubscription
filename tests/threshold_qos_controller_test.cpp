@@ -4,15 +4,14 @@
 
 #include <gtest/gtest.h>
 
-
 using mesos::Resources;
 
 using com::blue_yonder::ThresholdQoSController;
 
-
 namespace {
 
-struct ThresholdQoSControllerTests : public ::testing::Test {
+struct ThresholdQoSControllerTests : public ::testing::Test
+{
   ResourceUsageFake usage;
   LoadFake load;
   MemInfoFake memory;
@@ -101,4 +100,4 @@ TEST_F(ControllerTests, thresholds_exceed_but_no_revocable_tasks) {
   EXPECT_TRUE(corrections.empty());
 }
 
-}
+} // namespace {
