@@ -24,15 +24,15 @@ This repository contains two simple
 Is it any good?
 ---------------
 
-The threshold-based approach enabled us to double the CPU and memory utilization in our clusters.
-Your mileage may vary significantly, so please take this statement with a grain of salt.
+The threshold-based approach enabled us to double the CPU and memory utilization in our
+Mesos/Aurora clusters. Your mileage may vary, so please take this statement with a grain of salt.
 
 
 Mechanics
 ---------
 
-Resource estimator and QoS controller aim to work in unison to ensure that the system load is never
-approaching critical levels that could negativly affect non-revocable tasks.
+Resource estimator and QoS controller aim to work in unison to ensure that the system utilization
+is never approaching critical levels that could negativly affect non-revocable tasks.
 
 ![threshold mechanics](docs/mechanics.png)
 
@@ -68,60 +68,72 @@ Configuration
 The estimator and controller implementations assume the Mesos agent is using the following isolation
 mechanims:
 
-    --isolation=cgroups/cpu,cgroups/mem  # enable cgroup isolation and accounting
-    --revocable_cpu_low_priority         # run revocable tasks with minimal CPU shares
-    --cgroups_enable_cfs                 # enforce upper limit of usable CPU shares
-                                         # (optional but recommended)
+```bash
+--isolation=cgroups/cpu,cgroups/mem  # enable cgroup isolation and accounting
+--revocable_cpu_low_priority         # run revocable tasks with minimal CPU shares
+--cgroups_enable_cfs                 # enforce upper limit of usable CPU shares
+                                     # (optional but recommended)
+```
 
 To enable the oversubscription modules, launch the Mesos agent with the following flags. The given
 example assumes you have a host with 256000 MB RAM and 40 CPUs that you want to oversubscribe with
 at most 96000 MB RAM and 16 cores:
 
-    --oversubscribed_resources_interval=15secs
-    --qos_correction_interval_min=15secs
+```json
+--oversubscribed_resources_interval=15secs
+--qos_correction_interval_min=15secs
 
-    --resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
-    --modules='{
-      "libraries": {
-        "file": "/<path>/<to>/libthreshold_oversubscription.so",
-        "modules": [
-          {
-            "name": "com_blue_yonder_ThresholdResourceEstimator",
-            "parameters": [
-              { "key": "resources",
-                "value": "cpus:16;mem:96000"},
-              { "key": "load_threshold_1min",
-                "value": "64"},
-              { "key": "load_threshold_5min",
-                "value": "48" },
-              { "key": "load_threshold_15min",
-                "value": "32" },
-              { "key": "mem_threshold",
-                "value": "200000"}
-            ]
-          },
-          {
-            "name": "com_blue_yonder_ThresholdQoSController",
-            "parameters": [
-              { "key": "load_threshold_5min",
-                "value": "60" },
-              { "key": "load_threshold_15min",
-                "value": "40" },
-              { "key": "mem_threshold",
-                "value": "230000"}
-            ]
-          }
+--resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
+--modules='{
+  "libraries": {
+    "file": "/<path>/<to>/libthreshold_oversubscription.so",
+    "modules": [
+      {
+        "name": "com_blue_yonder_ThresholdResourceEstimator",
+        "parameters": [
+          { "key": "resources",
+            "value": "cpus:16;mem:96000"},
+          { "key": "load_threshold_1min",
+            "value": "64"},
+          { "key": "load_threshold_5min",
+            "value": "48" },
+          { "key": "load_threshold_15min",
+            "value": "32" },
+          { "key": "mem_threshold",
+            "value": "200000"}
+        ]
+      },
+      {
+        "name": "com_blue_yonder_ThresholdQoSController",
+        "parameters": [
+          { "key": "load_threshold_5min",
+            "value": "60" },
+          { "key": "load_threshold_15min",
+            "value": "40" },
+          { "key": "mem_threshold",
+            "value": "230000"}
         ]
       }
-    }'
+    ]
+  }
+}'
+```
 
+Make sure to set the memory thresholds low enough so that the operating system can maintain
+sufficiently large file buffers and caches. This will also prevent the Linux OOM from being
+triggered which could potentially kill a non-revocable task.
 
-Things to consider:
+By default, a Mesos framework receives only non-revocable resources. An explicit opt-in is
+required to receive revocable resources as well. For example, for
+[oversubscription with Apache Aurora](https://github.com/apache/aurora/blob/master/docs/features/resource-isolation.md#oversubscription)
+the following scheduler flags are required:
 
-* Memory thresholds should be set low enough, so that the the operating system can maintain
-  sufficiently large file buffers and caches. This will prevent the OOM from being triggered
-  which could potentially kill a non-revocable task.
-* Thresholds should be chosen conservative, so that QoS corrections aren't required very often.
+```bash
+-receive_revocable_resources  # opt-in for revocable resource offers
+-enable_revocable_cpus        # schedule revocable jobs using revocable CPU resources
+-enable_revocable_ram         # schedule revocable jobs using revocable RAM resources
+
+```
 
 
 Known Limitations
@@ -130,20 +142,21 @@ Known Limitations
 The main design goals of the threshold modules was a simple, stateless implementation.
 This comes with a few limitations:
 
-* Being based on load and memory thresholds, the oversubscription technique described here
-  may not be suitable for aggressive oversubscription on systems with very latency sensitive
+* Being based on coarse-grained load and memory thresholds, the oversubscription technique described
+  here might not be suitable for aggressive oversubscription on systems with very latency sensitive
   services. If you have such a requirement, either be very conservative or have a look at
   [Intel/Mesosphere Serenity](https://github.com/mesosphere/serenity).
 
-* Both the estimator and the QoS controller rely on the Linux/Posix system `load`. It is defined as
-  the exponentially decaying average of `num runnable processes +  num uninterruptable processes`.
-  This does not play well with cgroups which can limit the number of cpu shares a process may burn.
-  In other words, this can lead to situations where load is high but actual CPU usage is low.
+* If you run your agents with `--cgroups_enable_cfs` you need at least a Linux kernel 3.8 or later.
+  Otherwise the system `load` used by estimator and QoS controller will not correctly account for
+  throttled processes. Further details can be found in this
+  [LWN article](https://lwn.net/Articles/531853/).
 
 * When the CPU is overloaded, a random un-revocable task is killed rather than the most aggressive
   one.
 
-We may feel compelled to address some of these limitations in the future. :-)
+We may feel compelled to address some of these limitations in the future.
+Pull requests are welcome as well :-)
 
 
 License
