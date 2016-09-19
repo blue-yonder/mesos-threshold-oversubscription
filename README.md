@@ -80,10 +80,11 @@ example assumes you have a host with 256000 MB RAM and 40 CPUs that you want to 
 at most 96000 MB RAM and 16 cores:
 
 ```json
+--resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
+--qos_controller="com_blue_yonder_ThresholdQoSController"
 --oversubscribed_resources_interval=15secs
 --qos_correction_interval_min=15secs
 
---resource_estimator="com_blue_yonder_ThresholdResourceEstimator"
 --modules='{
   "libraries": {
     "file": "/<path>/<to>/libthreshold_oversubscription.so",
@@ -132,7 +133,6 @@ the following scheduler flags are required:
 -receive_revocable_resources  # opt-in for revocable resource offers
 -enable_revocable_cpus        # schedule revocable jobs using revocable CPU resources
 -enable_revocable_ram         # schedule revocable jobs using revocable RAM resources
-
 ```
 
 
