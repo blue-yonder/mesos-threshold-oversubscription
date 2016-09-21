@@ -1,0 +1,7 @@
+language: cpp
+install: ./provision.sh
+script: 
+- cmake .
+- make
+- make test
+- make install
