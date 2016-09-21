@@ -1,4 +1,6 @@
-#!/bin/bash -e -x
+#!/bin/bash
+set -e
+set -x
 
 # Helper script to install all necessary build dependencies
 
