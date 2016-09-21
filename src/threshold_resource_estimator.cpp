@@ -64,8 +64,8 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
     load{load},
     memory{memory},
     totalRevocable{totalRevocable},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+    loadThreshold(loadThreshold),
+    memThreshold(memThreshold)
 {}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
@@ -111,8 +111,8 @@ ThresholdResourceEstimator::ThresholdResourceEstimator(
   : load{load},
     memory{memory},
     totalRevocable{makeRevocable(totalRevocable)},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+    loadThreshold(loadThreshold),
+    memThreshold(memThreshold)
 {}
 
 Try<Nothing> ThresholdResourceEstimator::initialize(

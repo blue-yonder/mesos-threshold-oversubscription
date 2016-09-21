@@ -4,6 +4,14 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+
+UNRELEASED
+----------
+
+### Added
+
+* The source is now compatible with GCC 4.9.
+
 0.3.0 (2016-09-13)
 ------------------
 

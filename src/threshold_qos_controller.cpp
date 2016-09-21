@@ -66,8 +66,8 @@ ThresholdQoSControllerProcess::ThresholdQoSControllerProcess(
     usage{usage},
     load{load},
     memory{memory},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+    loadThreshold(loadThreshold),
+    memThreshold(memThreshold)
 {}
 
 Future<list<QoSCorrection>> ThresholdQoSControllerProcess::corrections() {
@@ -150,8 +150,8 @@ ThresholdQoSController::ThresholdQoSController(
   Bytes const& memThreshold)
   : load{load},
     memory{memory},
-    loadThreshold{loadThreshold},
-    memThreshold{memThreshold}
+    loadThreshold(loadThreshold),
+    memThreshold(memThreshold)
 {}
 
 Try<Nothing> ThresholdQoSController::initialize(std::function<Future<ResourceUsage>()> const& usage) {
