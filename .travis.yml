@@ -1,7 +1,7 @@
 language: cpp
 sudo: required
-install: sudo provision.sh
 script: 
+- sudo provision.sh
 - cmake .
 - make
 - make test
