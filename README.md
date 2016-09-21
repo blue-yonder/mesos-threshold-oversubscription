@@ -2,6 +2,7 @@ Threshold-based Mesos Oversubscription
 ======================================
 
 [![LICENSE](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/blue-yonder/mesos-threshold-oversubscription/blob/master/LICENSE)
+[![Travis CI](https://img.shields.io/travis/blue-yonder/mesos-threshold-oversubscriptio.svg)](https://travis-ci.org/blue-yonder/mesos-threshold-oversubscriptio)
 
 This repository contains two simple
 [Mesos oversubscription](http://mesos.apache.org/documentation/latest/oversubscription/) modules:
