@@ -13,8 +13,6 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vbguest.installer_arguments = ["--", "--force"]
-
   config.vm.provision "shell", inline: <<-SHELL
     apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
     echo "deb http://repos.mesosphere.com/debian jessie main" > /etc/apt/sources.list.d/mesosphere.list
