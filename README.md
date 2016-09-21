@@ -9,7 +9,7 @@ This repository contains two simple
 
   Similar to the `fixed` resource estimator provided by Mesos, it allows operators to configure a
   fixed amount of oversubscribable revocable resources per agent. However, once system utilization
-  reaches a defined treshold, resources will be cut to the currently used amount, avoiding further
+  reaches a defined threshold, resources will be cut to the currently used amount, avoiding further
   scheduling of revocable tasks.
 
 * `ThresholdQoSController`: Informs the Mesos agent that particular corrective actions need to be
