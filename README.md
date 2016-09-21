@@ -50,13 +50,11 @@ Installation
 ------------
 
 This project uses CMake. Build requires Mesos development headers and a compatible version of GCC.
-The Vagrant file in this repository creates a proper build environment for Debian Wheezy.
+The Vagrant file in this repository creates a proper build environment for Debian Jessie.
 
-Build and installation follow the usual CMake tripplet where on Debian Wheezy a compatible compiler
-must be selected:
+Build and installation follow the usual CMake tripplet. You can use the CXX and CC environment
+variable to ensure that a compatible compiler is selected.
 
-    export CXX=g++-5
-    export CC=gcc-5
     mkdir -p build
     cd build
     cmake ..
