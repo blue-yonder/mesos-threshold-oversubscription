@@ -1,8 +1,0 @@
-language: cpp
-sudo: required
-install: sudo ./provision.sh
-script: 
-- cmake .
-- make
-- make test
-- make install
