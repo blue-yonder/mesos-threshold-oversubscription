@@ -1,5 +1,6 @@
 language: cpp
-install: ./provision.sh
+sudo: required
+install: sudo provision.sh
 script: 
 - cmake .
 - make
