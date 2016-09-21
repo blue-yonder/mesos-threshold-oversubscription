@@ -34,7 +34,7 @@ Mechanics
 Resource estimator and QoS controller aim to work in unison to ensure that the system utilization
 is never approaching critical levels that could negativly affect non-revocable tasks.
 
-![threshold mechanics](docs/mechanics.png)
+![threshold mechanics](docs/oversubscription.png)
 
 Revocable resources will only be offered if the system utilization remains below the estimation
 threshold. If utilization spikes above, no more revocable resources are offered. If it further
