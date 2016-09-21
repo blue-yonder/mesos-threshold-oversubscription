@@ -26,8 +26,9 @@ This repository contains two simple
 Is it any good?
 ---------------
 
-The threshold-based approach enabled us to double the CPU and memory utilization in our
-Mesos/Aurora clusters. Your mileage may vary, so please take this statement with a grain of salt.
+The threshold-based approach enabled us to double the peak CPU and peak memory utilization in
+our Mesos/Aurora clusters. Your mileage may vary significantly, so please take this statement
+with a grain of salt.
 
 
 Mechanics
