@@ -5,8 +5,8 @@ All notable changes to this project are noted in this file. This project adheres
 Versioning](http://semver.org/).
 
 
-UNRELEASED
-----------
+0.4.0 (2016-09-21)
+------------------
 
 ### Added
 
