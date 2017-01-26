@@ -13,6 +13,8 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+
   config.vm.provision "shell", inline: <<-SHELL
     apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
     echo "deb http://repos.mesosphere.com/debian jessie main" > /etc/apt/sources.list.d/mesosphere.list
