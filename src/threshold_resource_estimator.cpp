@@ -19,6 +19,7 @@ using process::Failure;
 using process::Future;
 using process::Process;
 
+using mesos::Resource;
 using mesos::Resources;
 using mesos::ResourceUsage;
 
@@ -92,7 +93,7 @@ namespace {
 
 Resources makeRevocable(Resources const& any) {
   Resources revocable;
-  for (auto resource : any) {
+  for (mesos::Resource resource : any) {
     resource.mutable_revocable();
     revocable += resource;
   }

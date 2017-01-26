@@ -4,6 +4,13 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+0.5.0 (2017-01-26)
+------------------
+
+### Added
+
+* Fix compatibility with Mesos 1.1.0.
+
 
 0.4.0 (2016-09-21)
 ------------------
