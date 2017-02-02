@@ -4,6 +4,13 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+UNRELEASED
+----------
+
+### Bugfix
+
+* Fixed a bug in the test helpers that caused the test suite to fail if debug symbols were enabled on GCC 4.9.
+
 0.5.0 (2017-01-26)
 ------------------
 

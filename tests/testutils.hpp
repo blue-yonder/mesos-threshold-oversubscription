@@ -39,7 +39,8 @@ public:
 
       // always report all memory as actually used
       auto revocable_stats = revocable_executor->mutable_statistics();
-      revocable_stats->set_mem_total_bytes(revocable_resources.get().mem().get().bytes());
+      auto const mem = revocable_resources.get().mem();
+      revocable_stats->set_mem_total_bytes(mem.isSome() ? mem.get().bytes() : 0);
     }
 
     for (auto const& task_resources : non_revocable_allocated) {
@@ -53,7 +54,8 @@ public:
 
       // always report all memory as actually used
       auto non_revocable_stats = non_revocable_executor->mutable_statistics();
-      non_revocable_stats->set_mem_total_bytes(non_revocable_resources.get().mem().get().bytes());
+      auto const mem = non_revocable_resources.get().mem();
+      non_revocable_stats->set_mem_total_bytes(mem.isSome() ? mem.get().bytes() : 0);
     }
   }
 

@@ -29,9 +29,13 @@ TEST(ResourceUsageFakeTest, test_set) {
   EXPECT_EQ(1, allocatedNonRevocable.cpus().get());
   EXPECT_EQ(48, allocatedNonRevocable.mem().get().megabytes());
 
+  // set not usage
+  fake.set("", "");
+  fake().get();
+
   // must also work for copy
   ResourceUsageFake copy = fake;
-  fake.set("cpus:5;mem:127", "");
+  fake.set("cpus:5;mem:127", "cpus:2;mem:32");
   usage = copy().get();
 
   Resources copiedRevocable;
