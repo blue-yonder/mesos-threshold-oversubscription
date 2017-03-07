@@ -153,7 +153,7 @@ This comes with a few limitations:
   throttled processes. Further details can be found in this
   [LWN article](https://lwn.net/Articles/531853/).
 
-* When the CPU is overloaded, a random un-revocable task is killed rather than the most aggressive
+* When the CPU is overloaded, a random revocable task is killed rather than the most aggressive
   one.
 
 We may feel compelled to address some of these limitations in the future.
