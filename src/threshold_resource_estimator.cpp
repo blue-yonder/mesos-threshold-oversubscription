@@ -90,6 +90,10 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 {}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
+  return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
+}
+
+Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const& usage) {
   bool cpuOverload = threshold::loadExceedsThreshold(load, loadThreshold);
   bool memOverload = threshold::memExceedsThreshold(memory, memThreshold);
 
@@ -97,10 +101,6 @@ Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
     return Resources();
   }
 
-  return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
-}
-
-Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const& usage) {
   Resources allocatedRevocable;
   for (auto const& executor : usage.executors()) {
     allocatedRevocable += Resources(executor.allocated()).revocable();
