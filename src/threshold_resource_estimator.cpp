@@ -29,6 +29,26 @@ using com::blue_yonder::ThresholdResourceEstimatorProcess;
 using ::os::Load;
 
 
+namespace {
+
+Resources unallocated(const Resources& resources) {
+  Resources result = resources;
+  result.unallocate();
+  return result;
+}
+
+Resources makeRevocable(Resources const& any) {
+  Resources revocable;
+  for (mesos::Resource resource : any) {
+    resource.mutable_revocable();
+    revocable += resource;
+  }
+  return revocable;
+}
+
+} // namespace {
+
+
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
 public:
@@ -85,22 +105,8 @@ Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(Resourc
   for (auto const& executor : usage.executors()) {
     allocatedRevocable += Resources(executor.allocated()).revocable();
   }
-  return totalRevocable - allocatedRevocable;
+  return totalRevocable - unallocated(allocatedRevocable);
 }
-
-
-namespace {
-
-Resources makeRevocable(Resources const& any) {
-  Resources revocable;
-  for (mesos::Resource resource : any) {
-    resource.mutable_revocable();
-    revocable += resource;
-  }
-  return revocable;
-}
-
-} // namespace {
 
 
 ThresholdResourceEstimator::ThresholdResourceEstimator(

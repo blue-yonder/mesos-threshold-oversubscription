@@ -35,6 +35,7 @@ public:
         auto* mutable_resource = revocable_executor->add_allocated();
         mutable_resource->CopyFrom(parsed_resource);
         mutable_resource->mutable_revocable(); // mark as revocable
+        mutable_resource->mutable_allocation_info(); // add allocation info object
       }
 
       // always report all memory as actually used
@@ -50,6 +51,7 @@ public:
         auto* mutable_resource = non_revocable_executor->add_allocated();
         mutable_resource->CopyFrom(parsed_resource);
         mutable_resource->clear_revocable(); // mark as non-revocable
+        mutable_resource->mutable_allocation_info(); // add allocation info object
       }
 
       // always report all memory as actually used
