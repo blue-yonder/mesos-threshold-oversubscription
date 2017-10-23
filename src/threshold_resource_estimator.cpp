@@ -29,6 +29,26 @@ using com::blue_yonder::ThresholdResourceEstimatorProcess;
 using ::os::Load;
 
 
+namespace {
+
+Resources unallocated(const Resources& resources) {
+  Resources result = resources;
+  result.unallocate();
+  return result;
+}
+
+Resources makeRevocable(Resources const& any) {
+  Resources revocable;
+  for (mesos::Resource resource : any) {
+    resource.mutable_revocable();
+    revocable += resource;
+  }
+  return revocable;
+}
+
+} // namespace {
+
+
 class ThresholdResourceEstimatorProcess : public Process<ThresholdResourceEstimatorProcess>
 {
 public:
@@ -70,6 +90,10 @@ ThresholdResourceEstimatorProcess::ThresholdResourceEstimatorProcess(
 {}
 
 Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
+  return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
+}
+
+Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const& usage) {
   bool cpuOverload = threshold::loadExceedsThreshold(load, loadThreshold);
   bool memOverload = threshold::memExceedsThreshold(memory, memThreshold);
 
@@ -77,30 +101,12 @@ Future<Resources> ThresholdResourceEstimatorProcess::oversubscribable() {
     return Resources();
   }
 
-  return usage().then(process::defer(self(), &Self::calcUnusedResources, std::placeholders::_1));
-}
-
-Future<Resources> ThresholdResourceEstimatorProcess::calcUnusedResources(ResourceUsage const& usage) {
   Resources allocatedRevocable;
   for (auto const& executor : usage.executors()) {
     allocatedRevocable += Resources(executor.allocated()).revocable();
   }
-  return totalRevocable - allocatedRevocable;
+  return totalRevocable - unallocated(allocatedRevocable);
 }
-
-
-namespace {
-
-Resources makeRevocable(Resources const& any) {
-  Resources revocable;
-  for (mesos::Resource resource : any) {
-    resource.mutable_revocable();
-    revocable += resource;
-  }
-  return revocable;
-}
-
-} // namespace {
 
 
 ThresholdResourceEstimator::ThresholdResourceEstimator(
