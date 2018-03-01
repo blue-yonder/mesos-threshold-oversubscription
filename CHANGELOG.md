@@ -4,12 +4,17 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+
 UNRELEASED
 ----------
 
 ### Changed
 
 * Use Mesos's bundled libraries by default. This avoids issues when the bundled libraries are incompatible with the ones provided by the Linux distribution.
+
+### Removed
+
+* Debian 7 (Wheezy) is no longer supported.
 
 
 0.6.0 (2017-10-23)

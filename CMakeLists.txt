@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.9)  # CMake version provided by Debian Wheezy, older versions untested
+cmake_minimum_required(VERSION 3.0.2)  # CMake version provided by Debian Jessie, older versions untested
 project(threshold_oversubscription CXX C)  # Language C is required by GTest
 set(PROJECT_MAJOR_VERSION 0)
 set(PROJECT_MINOR_VERSION 3)
