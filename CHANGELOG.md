@@ -4,6 +4,14 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
+UNRLEASED
+---------
+
+### Removed
+
+* Debian 7 (Wheezy) is no longer supported.
+
+
 0.6.0 (2017-10-23)
 ------------------
 
