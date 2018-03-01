@@ -13,11 +13,22 @@ endif()
 #
 # Find all the dependencies
 #
+find_path(MESOS_INCLUDE_DIR "mesos/mesos.hpp" DOC "Mesos include directory")
+find_library(MESOS_LIBRARIES "mesos" DOC "The Mesos library")
+get_filename_component(MESOS_LIBRARY_DIR "${MESOS_LIBRARIES}" DIRECTORY)
+message("Found Mesos: ${MESOS_LIBRARIES}")
 
 # prefer Mesos bundled dependencies
-set(MESOS_BUNDLED_LIBRARIES_PREFIX "/usr/lib/mesos/3rdparty" CACHE PATH "The path where the bundled libraries of Mesos are installed.")
+find_path(
+    MESOS_BUNDLED_LIBRARIES_PREFIX
+     "mesos/3rdparty"
+     HINTS "${MESOS_LIBRARY_DIR}"
+     PATHS "/usr/lib"
+)
+set(MESOS_BUNDLED_LIBRARIES_PREFIX "${MESOS_BUNDLED_LIBRARIES_PREFIX}/mesos/3rdparty")
+message(STATUS "Found bundled Mesos libraries: ${MESOS_BUNDLED_LIBRARIES_PREFIX}")
 list(INSERT CMAKE_PREFIX_PATH 0 "${MESOS_BUNDLED_LIBRARIES_PREFIX}")
-set(BOOST_ROOT "/usr/lib/mesos/3rdparty")
+set(BOOST_ROOT "${MESOS_BUNDLED_LIBRARIES_PREFIX}")
 
 find_package(Boost REQUIRED)
 find_package(Protobuf REQUIRED)
@@ -25,8 +36,6 @@ find_package(Protobuf REQUIRED)
 find_path(GLOG_INCLUDE_DIR "glog/logging.h" DOC "Google logging include directory")
 find_path(STOUT_INCLUDE_DIR "stout/version.hpp" DOC "Stout include directory")
 find_path(LIBPROCESS_INCLUDE_DIR "process/run.hpp" DOC "libprocess include directory")
-find_path(MESOS_INCLUDE_DIR "mesos/mesos.hpp" DOC "Mesos include directory")
-find_library(MESOS_LIBRARIES "mesos" DOC "The Mesos library")
 
 include_directories(
     SYSTEM
