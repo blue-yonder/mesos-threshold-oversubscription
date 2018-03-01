@@ -14,6 +14,11 @@ endif()
 # Find all the dependencies
 #
 
+# prefer Mesos bundled dependencies
+set(MESOS_BUNDLED_LIBRARIES_PREFIX "/usr/lib/mesos/3rdparty" CACHE PATH "The path where the bundled libraries of Mesos are installed.")
+list(INSERT CMAKE_PREFIX_PATH 0 "${MESOS_BUNDLED_LIBRARIES_PREFIX}")
+set(BOOST_ROOT "/usr/lib/mesos/3rdparty")
+
 find_package(Boost REQUIRED)
 find_package(Protobuf REQUIRED)
 

@@ -23,10 +23,6 @@ Vagrant.configure("2") do |config|
     apt-get install -y                     \
         cmake                              \
         g++                                \
-        g++-4.9                            \
-        libprotobuf-dev                    \
-        libboost-dev                       \
-        libgoogle-glog-dev                 \
         libcurl4-nss-dev                   \
         libgtest-dev                       \
         mesos

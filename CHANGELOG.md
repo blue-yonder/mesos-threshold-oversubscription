@@ -4,8 +4,13 @@ Change Log
 All notable changes to this project are noted in this file. This project adheres to [Semantic
 Versioning](http://semver.org/).
 
-UNRLEASED
----------
+
+UNRELEASED
+----------
+
+### Changed
+
+* Use Mesos's bundled libraries by default. This avoids issues when the bundled libraries are incompatible with the ones provided by the Linux distribution.
 
 ### Removed
 
