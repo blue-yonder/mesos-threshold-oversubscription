@@ -8,7 +8,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF && \
         g++ \
         libcurl4-nss-dev \
         libgtest-dev \
-        mesos
+        mesos=1.4.1-2.0.1
 
 ADD . /src
 RUN mkdir /build && \

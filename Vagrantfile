@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
         g++                                \
         libcurl4-nss-dev                   \
         libgtest-dev                       \
-        mesos
+        mesos=1.4.1-2.0.1
   SHELL
 
 end
