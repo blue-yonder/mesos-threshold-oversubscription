@@ -8,6 +8,10 @@ Versioning](http://semver.org/).
 UNRELEASED
 ----------
 
+### Added
+
+* Debian 9 (Stretch) is now supported.
+
 ### Changed
 
 * Use Mesos's bundled libraries by default. This avoids issues when the bundled libraries are incompatible with the ones provided by the Linux distribution.
