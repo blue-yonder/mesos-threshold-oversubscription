@@ -161,7 +161,7 @@ Try<Nothing> ThresholdQoSController::initialize(std::function<Future<ResourceUsa
 
   LOG(INFO) << "Initializing ThresholdQoSController. Load thresholds: "
             << loadThreshold.one << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
-            << "Memory threshold: " << memThreshold.megabytes() << " MB";
+            << "Memory threshold: " << memThreshold;
 
   process.reset(new ThresholdQoSControllerProcess(
     usage,

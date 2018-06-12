@@ -216,7 +216,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_no_thresholds) {
   estimator->initialize(noUsage);
   auto const availableResources = estimator->oversubscribable().get();
   EXPECT_EQ(2.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(512, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(512 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_below_thresholds) {
@@ -226,7 +226,7 @@ TEST_F(ThresholdResourceEstimatorTest, test_below_thresholds) {
   estimator->initialize(noUsage);
   auto const availableResources = estimator->oversubscribable().get();
   EXPECT_EQ(2.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(512, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(512 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 }
 
 TEST_F(ThresholdResourceEstimatorTest, test_above_thresholds) {

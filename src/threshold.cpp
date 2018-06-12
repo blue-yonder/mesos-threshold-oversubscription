@@ -30,8 +30,8 @@ bool memExceedsThreshold(
   auto const usedMemory = memoryInfo.get().total - memoryInfo.get().free - memoryInfo.get().cached;
 
   if (usedMemory >= memThreshold) {
-    LOG(INFO) << "Total memory used " << usedMemory.megabytes() << " MB "
-              << "reached threshold " << memThreshold.megabytes() << " MB.";
+    LOG(INFO) << "Total memory used " << usedMemory
+              << "reached threshold " << memThreshold;
     return true;
   }
   return false;

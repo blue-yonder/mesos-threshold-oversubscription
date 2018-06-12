@@ -62,18 +62,18 @@ TEST_F(EstimatorTests, load_not_exceeded) {
   auto availableResources = estimator.oversubscribable().get();
   EXPECT_FALSE(availableResources.empty());
   EXPECT_EQ(1.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(448, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(448 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 
   load.set(1.0, 10.0, 1.9);
   availableResources = estimator.oversubscribable().get();
   EXPECT_FALSE(availableResources.empty());
   EXPECT_EQ(1.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(448, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(448 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 
   load.set(1.0, 1.0, 10.0);
   availableResources = estimator.oversubscribable().get();
   EXPECT_EQ(1.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(448, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(448 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 }
 
 TEST_F(EstimatorTests, load_exceeded) {
@@ -100,7 +100,7 @@ TEST_F(EstimatorTests, mem_not_exceeded) {
   auto const availableResources = estimator.oversubscribable().get();
   EXPECT_FALSE(availableResources.empty());
   EXPECT_EQ(1.0, availableResources.revocable().cpus().get());
-  EXPECT_EQ(448, availableResources.revocable().mem().get().megabytes());
+  EXPECT_EQ(448 * 1024 * 1024, availableResources.revocable().mem().get().bytes());
 }
 
 TEST_F(EstimatorTests, mem_exceeded) {

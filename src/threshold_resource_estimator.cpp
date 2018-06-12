@@ -131,7 +131,7 @@ Try<Nothing> ThresholdResourceEstimator::initialize(
 
   LOG(INFO) << "Initializing ThresholdResourceEstimator. Load thresholds: " << loadThreshold.one
             << " " << loadThreshold.five << " " << loadThreshold.fifteen << " "
-            << "Memory threshold: " << memThreshold.megabytes() << " MB";
+            << "Memory threshold: " << memThreshold;
 
   process.reset(new ThresholdResourceEstimatorProcess(
     usage,

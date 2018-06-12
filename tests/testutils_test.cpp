@@ -25,9 +25,9 @@ TEST(ResourceUsageFakeTest, test_set) {
 
   EXPECT_EQ(2, usage.executors_size());
   EXPECT_EQ(3, allocatedRevocable.cpus().get());
-  EXPECT_EQ(62, allocatedRevocable.mem().get().megabytes());
+  EXPECT_EQ(62 * 1024 * 1024, allocatedRevocable.mem().get().bytes());
   EXPECT_EQ(1, allocatedNonRevocable.cpus().get());
-  EXPECT_EQ(48, allocatedNonRevocable.mem().get().megabytes());
+  EXPECT_EQ(48 * 1024 * 1024, allocatedNonRevocable.mem().get().bytes());
 
   // set not usage
   fake.set("", "");
@@ -43,7 +43,7 @@ TEST(ResourceUsageFakeTest, test_set) {
     copiedRevocable += Resources(executor.allocated()).revocable();
   }
   EXPECT_EQ(5, copiedRevocable.cpus().get());
-  EXPECT_EQ(127, copiedRevocable.mem().get().megabytes());
+  EXPECT_EQ(127 * 1024 * 1024, copiedRevocable.mem().get().bytes());
 }
 
 #define EXPECT_LOAD(expect_one, expect_five, expect_fifteen, load) \
@@ -83,9 +83,9 @@ TEST(MemInfoFakeTest, test_set) {
   auto copy = fake;
   fake.set("1GB", "128MB", "256MB");
   auto const mem = copy().get();
-  EXPECT_EQ(1, mem.total.gigabytes());
-  EXPECT_EQ(128, mem.free.megabytes());
-  EXPECT_EQ(256, mem.cached.megabytes());
+  EXPECT_EQ(1 * 1024 * 1024 * 1024, mem.total.bytes());
+  EXPECT_EQ(128 * 1024 * 1024, mem.free.bytes());
+  EXPECT_EQ(256 * 1024 * 1024, mem.cached.bytes());
 }
 
 TEST(MemInfoFakeTest, test_set_error) {
