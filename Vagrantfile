@@ -3,7 +3,7 @@
 
 vbox_version = `VBoxManage --version`
 
-machines = ['jessie', 'stretch']
+machines = ['stretch']
 
 Vagrant.configure("2") do |config|
   machines.each do |os|
@@ -32,7 +32,7 @@ Vagrant.configure("2") do |config|
             g++                                \
             libcurl4-nss-dev                   \
             libgtest-dev                       \
-            mesos=1.4.1-2.0.1
+            mesos=1.5.0-2.0.1
       SHELL
     end
   end

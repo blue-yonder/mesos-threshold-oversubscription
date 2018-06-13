@@ -5,6 +5,14 @@ All notable changes to this project are noted in this file. This project adheres
 Versioning](http://semver.org/).
 
 
+0.8.0 (UNRELEASED)
+------------------
+
+### Added
+
+* Add compatibility with Mesos 1.5.0.
+
+
 0.7.0 (2018-03-07)
 ------------------
 

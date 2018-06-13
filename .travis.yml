@@ -9,10 +9,8 @@ services:
 
 env:
   matrix:
+    - MESOS_VERSION=1.5.0-2.0.1 DEBIAN_VERSION=stretch
     - MESOS_VERSION=1.4.1-2.0.1 DEBIAN_VERSION=stretch
-    - MESOS_VERSION=1.4.1-2.0.1 DEBIAN_VERSION=jessie
-    - MESOS_VERSION=1.3.2-2.0.1 DEBIAN_VERSION=jessie
-    - MESOS_VERSION=1.2.3-2.0.1 DEBIAN_VERSION=jessie
 
 script:
   - docker build --build-arg MESOS_VERSION=${MESOS_VERSION} --build-arg DEBIAN_VERSION=${DEBIAN_VERSION} .
