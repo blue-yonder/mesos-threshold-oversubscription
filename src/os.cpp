@@ -16,6 +16,7 @@ Try<com::blue_yonder::os::MemInfo> com::blue_yonder::os::meminfo() {
   Option<Bytes> total = None();
   Option<Bytes> free = None();
   Option<Bytes> cached = None();
+  Option<Bytes> memAvailable = None();
 
   while (proc >> identifier >> bytes >> unit) {
     if (identifier == "MemTotal:") {
@@ -38,6 +39,12 @@ Try<com::blue_yonder::os::MemInfo> com::blue_yonder::os::meminfo() {
         return Error("Failed to parse Cached from /proc/meminfo: " + parsed.error());
       }
       cached = parsed.get();
+    } else if (identifier == "MemAvailable:") {
+      auto const parsed = Bytes::parse(bytes + unit);
+      if (parsed.isError()) {
+        return Error("Failed to parse MemAvailable from /proc/meminfo: " + parsed.error());
+      }
+      memAvailable = parsed.get();
     }
   }
 
@@ -53,6 +60,9 @@ Try<com::blue_yonder::os::MemInfo> com::blue_yonder::os::meminfo() {
   if (not cached.isSome()) {
     return Error("Could not find Cached in /proc/meminfo");
   }
+  if (not memAvailable.isSome()) {
+    return Error("Could not find MemAvailable in /proc/meminfo");
+  }
 
-  return MemInfo{total.get(), free.get(), cached.get()};
+  return MemInfo{total.get(), free.get(), cached.get(), memAvailable.get()};
 }

@@ -11,6 +11,7 @@ struct MemInfo
   Bytes total;
   Bytes free;
   Bytes cached;
+  Bytes memAvailable;
 };
 
 Try<MemInfo> meminfo();
