@@ -75,19 +75,15 @@ TEST(MemInfoFakeTest, test_default) {
   MemInfoFake fake;
   auto const mem = fake().get();
   EXPECT_EQ(0, mem.total.bytes());
-  EXPECT_EQ(0, mem.free.bytes());
-  EXPECT_EQ(0, mem.cached.bytes());
   EXPECT_EQ(0, mem.memAvailable.bytes());
 }
 
 TEST(MemInfoFakeTest, test_set) {
   MemInfoFake fake;
   auto copy = fake;
-  fake.set("1GB", "128MB", "256MB", "374MB");
+  fake.set("1GB", "374MB");
   auto const mem = copy().get();
   EXPECT_EQ(1 * 1024 * 1024 * 1024, mem.total.bytes());
-  EXPECT_EQ(128 * 1024 * 1024, mem.free.bytes());
-  EXPECT_EQ(256 * 1024 * 1024, mem.cached.bytes());
   EXPECT_EQ(374 * 1024 * 1024, mem.memAvailable.bytes());
 }
 

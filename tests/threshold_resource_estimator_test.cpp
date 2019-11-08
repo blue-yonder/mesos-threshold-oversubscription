@@ -54,7 +54,7 @@ struct EstimatorTests : public ThresholdResourceEstimatorTests {
   } {
     usage.set("cpus(*):1.0;mem(*):64", "cpus(*):1.0;mem(*):128");
     load.set(3.9, 2.9, 1.9);
-    memory.set("512MB", "64MB", "256MB", "300MB");
+    memory.set("512MB", "300MB");
   }
 };
 
@@ -104,7 +104,7 @@ TEST_F(EstimatorTests, mem_not_exceeded) {
 }
 
 TEST_F(EstimatorTests, mem_exceeded) {
-  memory.set("512MB", "0MB", "0MB", "0MB");
+  memory.set("512MB", "0MB");
   auto const availableResources = estimator.oversubscribable().get();
   EXPECT_TRUE(availableResources.empty());
 }
