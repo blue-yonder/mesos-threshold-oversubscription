@@ -21,5 +21,5 @@ RUN mkdir /build && \
     cd /build && \
     cmake /src && \
     make && \
-    make test && \
+    ctest --output-on-failure && \
     make install
