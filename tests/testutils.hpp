@@ -100,17 +100,18 @@ private:
 
 class MemInfoFake {
 public:
-  MemInfoFake() : value{std::make_shared<Try<MemInfo>>(MemInfo{0, 0, 0})} {};
+  MemInfoFake() : value{std::make_shared<Try<MemInfo>>(MemInfo{0, 0, 0, 0})} {};
 
   Try<MemInfo> operator()() const {
     return *value;
   }
 
-  void set(std::string const & total, std::string const & free, std::string const & cached) {
+  void set(std::string const & total, std::string const & free, std::string const & cached, std::string const & memAvailable) {
     *value = MemInfo{
       Bytes::parse(total).get(),
       Bytes::parse(free).get(),
-      Bytes::parse(cached).get()
+      Bytes::parse(cached).get(),
+      Bytes::parse(memAvailable).get()
     };
   }
 
