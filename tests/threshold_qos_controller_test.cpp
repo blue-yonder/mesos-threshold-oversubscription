@@ -41,7 +41,7 @@ struct ControllerTests : public ThresholdQoSControllerTests {
   } {
     usage.setMany({"cpus(*):0.5;mem(*):64", "cpus(*):1.0;mem(*):64"}, {"cpus(*):1.5;mem(*):128", "cpus(*):0.1;mem(*):16"});
     load.set(3.9, 2.9, 1.9);
-    memory.set("512MB", "64MB", "256MB");
+    memory.set("512MB", "64MB", "256MB", "300MB");
   }
 };
 
@@ -71,7 +71,7 @@ TEST_F(ControllerTests, load_not_available) {
 }
 
 TEST_F(ControllerTests, mem_exceeded) {
-  memory.set("512MB", "0MB", "0MB");
+  memory.set("512MB", "0MB", "0MB", "0MB");
   auto const corrections = controller.corrections().get();
   EXPECT_TRUE(corrections.size() == 1);
 }
@@ -85,7 +85,7 @@ TEST_F(ControllerTests, mem_not_available) {
 TEST_F(ControllerTests, thresholds_exceed_but_no_tasks) {
   load.set(10.0, 10.0, 10.0);
   usage.set("", "");
-  memory.set("512MB", "32MB", "32MB");
+  memory.set("512MB", "32MB", "32MB", "60MB");
 
   auto corrections = controller.corrections().get();
   EXPECT_TRUE(corrections.empty());
@@ -94,7 +94,7 @@ TEST_F(ControllerTests, thresholds_exceed_but_no_tasks) {
 TEST_F(ControllerTests, thresholds_exceed_but_no_revocable_tasks) {
   load.set(10.0, 10.0, 10.0);
   usage.set("", "cpus(*):1.5;mem(*):128");
-  memory.set("512MB", "32MB", "32MB");
+  memory.set("512MB", "32MB", "32MB", "60MB");
 
   auto corrections = controller.corrections().get();
   EXPECT_TRUE(corrections.empty());
