@@ -5,7 +5,7 @@ All notable changes to this project are noted in this file. This project adheres
 Versioning](http://semver.org/).
 
 
-0.8.1 (UNRELEASED)
+0.8.1 (2019-11-14)
 ------------------
 
 ### Fixed
